@@ -29,6 +29,7 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -39,6 +40,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 @TeleOp(name = "FullControl", group = "TeleOp")
 public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
@@ -47,39 +49,36 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private DcMotor rightDrive = null;
     private Servo servo1 = null;
     private int servo1position = 0;
-    private int loops = 0;
-    private int motorTickPerRevolution = (1440/86)*100;
+    private int motorTickPerRevolution = (1440 / 86) * 100;
     private double wheelDiameter = 2 * 5.1 * 3.14;
     private double distanceBetween = 39;
     private double placeSpinDiameter = 2 * distanceBetween * 3.14;
-    @Deprecated
-    private double spinPerSecond = 1.85;
-    @Deprecated
-    private double distancePerSecond = spinPerSecond * wheelDiameter;
-    @Deprecated
-    private double distancePerDegree = placeSpinDiameter / 360;
-    private double timePerCentimeter = 1 / wheelDiameter * distancePerSecond;
-    private double timePerDegree = timePerCentimeter * distancePerDegree;
-    private double tickPerCentimeter = (motorTickPerRevolution ) / (wheelDiameter);
-    private double tickPerDegree = ((placeSpinDiameter * tickPerCentimeter / 360)/3.6)*3.90;
-    private ArrayList<RobotAction> actions = new ArrayList<>();
-    private RobotAction[] autonomous=new RobotAction[]{
-            new RobotAction((int)getTime() + 1000, new RobotAction.Execute() {
-                @Override
-                public void onExecute() {
-                    autonomousTurnRight(50);
-                }
+    private double tickPerCentimeter = (motorTickPerRevolution) / (wheelDiameter);
+    private double tickPerDegree = ((placeSpinDiameter * tickPerCentimeter / 360) / 3.6) * 3.90;
+    private final int MULTI = 1;
+    private final int LINEBYLINE = 2;
+    private int MODE = MULTI;
+    private ArrayList<Action> actions = new ArrayList<>();
+    private ArrayList<Action.TimeableAction> timableActions = new ArrayList<>();
+    private Action[] autonomous = new Action[]{new Action(new Action.Execute() {
+        @Override
+        public boolean onLoop() {
+            return autonomousDrive(100).onLoop();
+        }
+    }), new Action(new Action.Execute() {
+        @Override
+        public boolean onLoop() {
+            return autonomousTurnLeft(90).onLoop();
+        }
+    }), new Action(new Action.Execute() {
+        @Override
+        public boolean onLoop() {
+            return autonomousDrive(100).onLoop();
+        }
+    })};
 
-                @Override
-                public boolean loopExecute() {
-                    return false;
-                }
-            }),
-            new RobotAction(0,null)
-    };
     @Override
     public void init() {
-        telemetry.addData("Status", "Initialized");
         leftDrive = hardwareMap.get(DcMotor.class, "l");
         rightDrive = hardwareMap.get(DcMotor.class, "r");
         rightDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -89,7 +88,6 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         servo1.setPosition(5);
         leftDrive.setDirection(DcMotor.Direction.FORWARD);
         rightDrive.setDirection(DcMotor.Direction.REVERSE);
-        telemetry.addData("Status", "Initialized");
     }
 
     @Override
@@ -125,7 +123,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             } catch (InterruptedException e) {
             }
         } else if (gamepad1.y) {
-            autonomousTurnLeft(180);
+            fullAuto();
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
@@ -138,108 +136,58 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             } catch (InterruptedException e) {
             }
         }
-        for (int a = 0; a < actions.size(); a++) {
-            RobotAction act = actions.get(a);
-            if(act.getTime() != -1) {
-                if (act.getTime() == (int) runtime.milliseconds()) {
-                    act.getExecutable().onExecute();
-                    actions.remove(a);
-                } else if (act.getTime() < (int) runtime.milliseconds()) {
-                    actions.remove(a);
+        if (MODE == LINEBYLINE) {
+            if (actions.size() != 0) {
+                if (actions.get(0).isAlive()) {
+                    actions.get(0).run();
+                } else {
+                    actions.remove(0);
                 }
-            }else{
-                boolean remove=act.getExecutable().loopExecute();
-                if(remove){
+            }
+        } else if (MODE == MULTI) {
+            for (int a = 0; a < actions.size(); a++) {
+                Action act = actions.get(a);
+                if (act.isAlive()) {
+                    act.run();
+                } else {
                     actions.remove(a);
                 }
             }
         }
-        loops++;
         telemetry.addData("Actions Left", actions.size());
-        if (actions.size() > 0) {
-            telemetry.addData("Next Action In", (actions.get(0).time - runtime.milliseconds()) / 1000);
-        }
         telemetry.addData("Seconds", (int) runtime.seconds());
-        telemetry.addData("Loops", loops);
-        telemetry.addData("Motor", leftDrive.getPower() + " " + rightDrive.getPower());
+        //        telemetry.addData("Motor", leftDrive.getPower() + " " + rightDrive.getPower());
     }
-    void resetRobot(){
+
+    void resetRobot() {
         leftDrive.setPower(0);
         rightDrive.setPower(0);
         leftDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         rightDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
     }
+
     void emergencyStop() {
         resetRobot();
         actions.clear();
         telemetry.addData("EMERGENCY", "Emergency Stop!");
     }
 
-    int getPosition(int target) {
-        return 0;
+    void fullAuto() {
+        actions.clear();
+        actions.addAll(Arrays.asList(autonomous));
+        MODE = LINEBYLINE;
     }
 
-    double getTimeForCM(int cm) {
-        return cm / distancePerSecond;
-    }
-
-    double getTime() {
-        return runtime.milliseconds();
-    }
-
-    double fullTimeForCM(int cm) {
-        return getTime() + getTimeForCM(cm) * 1000;
-    }
-
-//    void meterTest() {
-//        leftDrive.setPower(1);
-//        rightDrive.setPower(1);
-//        actions.add(new RobotAction((int) fullTimeForCM(100), new RobotAction.Execute() {
-//            @Override
-//            public void onExecute() {
-//                leftDrive.setPower(0);
-//                rightDrive.setPower(0);
-//            }
-//        }));
-//    }
-
-    void autonomousDrive(int centimeters) {
+    void autoDrive(int centimeters) {
         leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rightDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerCentimeter * centimeters));
         leftDrive.setTargetPosition(leftDrive.getCurrentPosition() + (int) (tickPerCentimeter * centimeters));
         leftDrive.setPower(1);
         rightDrive.setPower(1);
-        actions.add(new RobotAction(-1, new RobotAction.Execute() {
+        actions.add(new Action(new Action.Execute() {
             @Override
-            public void onExecute() {
-            }
-
-            @Override
-            public boolean loopExecute() {
-                if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
-                    resetRobot();
-                    telemetry.addData("Action", "DONE");
-                    return true;
-                } else {
-                    telemetry.addData("Action", "NOT_DONE");
-                    return false;
-                }
-            }
-        }));
-    }
-
-    void autonomousTurnLeft(final int degree) {
-        rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        rightDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
-        rightDrive.setPower(1);
-        actions.add(new RobotAction(-1, new RobotAction.Execute() {
-            @Override
-            public void onExecute() {
-            }
-
-            @Override
-            public boolean loopExecute() {
+            public boolean onLoop() {
                 if (rightDrive.isBusy() && leftDrive.isBusy()) {
                     resetRobot();
                     return true;
@@ -249,26 +197,87 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         }));
     }
 
-    void autonomousTurnRight(final int degree) {
+    Action.Execute autonomousDrive(int centimeters) {
+        leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rightDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerCentimeter * centimeters));
+        leftDrive.setTargetPosition(leftDrive.getCurrentPosition() + (int) (tickPerCentimeter * centimeters));
+        leftDrive.setPower(1);
+        rightDrive.setPower(1);
+        return new Action.Execute() {
+            @Override
+            public boolean onLoop() {
+                if (rightDrive.isBusy() && leftDrive.isBusy()) {
+                    resetRobot();
+                    return true;
+                }
+                return false;
+            }
+        };
+    }
+
+    void autoTurnLeft(final int degree) {
+        rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rightDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
+        rightDrive.setPower(1);
+        actions.add(new Action(new Action.Execute() {
+            @Override
+            public boolean onLoop() {
+                if (rightDrive.isBusy() && leftDrive.isBusy()) {
+                    resetRobot();
+                    return true;
+                }
+                return false;
+            }
+        }));
+    }
+
+    Action.Execute autonomousTurnLeft(final int degree) {
+        rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rightDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
+        rightDrive.setPower(1);
+        return new Action.Execute() {
+            @Override
+            public boolean onLoop() {
+                if (rightDrive.isBusy() && leftDrive.isBusy()) {
+                    resetRobot();
+                    return true;
+                }
+                return false;
+            }
+        };
+    }
+
+    void autoTurnRight(final int degree) {
         leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         leftDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
         leftDrive.setPower(1);
-        actions.add(new RobotAction(-1, new RobotAction.Execute() {
+        actions.add(new Action(new Action.Execute() {
             @Override
-            public void onExecute() {
+            public boolean onLoop() {
                 if (rightDrive.isBusy() && leftDrive.isBusy()) {
-                    leftDrive.setPower(0);
-                    rightDrive.setPower(0);
-                    leftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-                    rightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+                    resetRobot();
+                    return true;
                 }
-            }
-
-            @Override
-            public boolean loopExecute() {
-                return true;
+                return false;
             }
         }));
+    }
+
+    Action.Execute autonomousTurnRight(final int degree) {
+        leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        leftDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
+        leftDrive.setPower(1);
+        return new Action.Execute() {
+            @Override
+            public boolean onLoop() {
+                if (rightDrive.isBusy() && leftDrive.isBusy()) {
+                    resetRobot();
+                    return true;
+                }
+                return false;
+            }
+        };
     }
 
     void turnLeft(double forwardPower) {
@@ -328,25 +337,47 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     }
 }
 
-class RobotAction {
+class Action {
+    @Deprecated
+    static class TimeableAction {
+        Execute e;
+        int time;
+
+        TimeableAction(int time, @Nullable Execute execute) {
+            this.time = time;
+            this.e = execute;
+        }
+
+        Execute getExecutable() {
+            return e;
+        }
+
+        int getTime() {
+            return time;
+        }
+
+        interface Execute {
+            void onExecute();
+        }
+    }
+
     Execute e;
-    int time;
 
-    RobotAction(int time, @Nullable Execute execute) {
-        this.time = time;
-        this.e = execute;
+    Action(@NonNull Execute execute) {
+        e = execute;
     }
 
-    Execute getExecutable() {
-        return e;
+    private boolean alive = true;
+
+    boolean isAlive() {
+        return alive;
     }
 
-    int getTime() {
-        return time;
+    void run() {
+        alive = !e.onLoop();
     }
 
     interface Execute {
-        void onExecute();
-        boolean loopExecute();
+        boolean onLoop();
     }
 }
