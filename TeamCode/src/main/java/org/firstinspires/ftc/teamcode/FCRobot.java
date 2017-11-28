@@ -50,34 +50,20 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private DcMotor arm = null;
     private Servo clawLeft = null;
     private Servo clawRight = null;
+    private int armInitial=0;
+    private int armFinal=0;
+    private int MULTI = 1;
+    private int LINEBYLINE = 2;
+    private int MODE = MULTI;
     private int motorTickPerRevolution = (1440 / 86) * 100;
     private double wheelDiameter = 2 * 5.1 * 3.14;
     private double distanceBetween = 39;
     private double placeSpinDiameter = 2 * distanceBetween * 3.14;
     private double tickPerCentimeter = (motorTickPerRevolution) / (wheelDiameter);
     private double tickPerDegree = ((placeSpinDiameter * tickPerCentimeter / 360) /231)*245;
-    private int armInitial=0;
-    private int armFinal=0;
-    private final double armToGear=6.5/3;
-    private final int MULTI = 1;
-    private final int LINEBYLINE = 2;
-    private int MODE = MULTI;
+    private double armToGear=6.5/3;
     private ArrayList<Action> actions = new ArrayList<>();
     private ArrayList<String> permenant_messages=new ArrayList<>();
-    private Action[] getAutonomous() {
-        Action[] autonomousTest = new Action[]{autonomousDrive(50), autonomousClawOpen(),autonomousDrive(20),autonomousClawClose(),autonomousArmMove(10),new Action(new Action.Execute() {
-            @Override
-            public void onSetup() {
-                MODE=MULTI;
-            }
-
-            @Override
-            public boolean onLoop() {
-                return true;
-            }
-        })};
-        return autonomousTest;
-    }
     @Override
     public void init() {
         leftDrive = hardwareMap.get(DcMotor.class, "l");
@@ -96,11 +82,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         arm.setDirection(DcMotor.Direction.REVERSE);
         armInitial=arm.getCurrentPosition();
         armFinal=armInitial+0;
-        clawLeft.setPosition(1);
-        buttonSleep();
-        buttonSleep();
-        buttonSleep();
-        clawRight.setPosition(0.8);
+        collapseClaw();
 
         //        leftDrive.setDirection(DcMotor.Direction.FORWARD);
 //        rightDrive.setDirection(DcMotor.Direction.REVERSE);
@@ -113,22 +95,226 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     @Override
     public void start() {
         runtime.reset();
+        clawOpen();
     }
 
     @Override
     public void loop() {
-//        telemetry.addData("Info", "Values: ");
-        telemetry.addLine((String.valueOf( clawLeft.getPosition())));
         checkEmergency();
         handleGamepad1();
         handleGamepad2();
         handleActions();
-        for(int s=0;s<permenant_messages.size();s++){
-            telemetry.addLine(permenant_messages.get(s));
+        showMessages();
+    }
+    @Override
+    public void stop() {
+        collapseClaw();
+    }
+    private Action[] getAutonomous() {
+        Action[] autonomousTest = new Action[]{autonomousDrive(50), autonomousClawOpen(),autonomousDrive(20),autonomousClawClose(),autonomousArmMove(10),new Action(new Action.Execute() {
+            @Override
+            public void onSetup() {
+                MODE=MULTI;
+            }
+
+            @Override
+            public boolean onLoop() {
+                return true;
+            }
+        })};
+        return autonomousTest;
+    }
+    double getDrivePower() {
+        double power = 0;
+        if (gamepad1.right_trigger != 0) {
+            power += gamepad1.right_trigger;
         }
-        telemetry.addData("Actions:", actions.size());
-        telemetry.addData("Seconds", (int) runtime.seconds());
-        //        telemetry.addData("Motor", leftDrive.getPower() + " " + rightDrive.getPower());
+        if (gamepad1.left_trigger != 0) {
+            power -= gamepad1.left_trigger/3;
+        }
+        return power;
+    }
+    double getTurnPower() {
+        if (gamepad1.dpad_left) {
+            return -1;
+        } else if (gamepad1.dpad_right) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+    double getArmSpeed(){
+        double speed = 0;
+        if (gamepad2.right_trigger != 0) {
+            speed += gamepad2.right_trigger;
+        }
+        if (gamepad2.left_trigger != 0) {
+            speed -= gamepad2.left_trigger/4;
+        }
+        return speed;
+    }
+    boolean isClawOpen(){
+        if (clawLeft.getPosition()<0.45&&clawRight.getPosition()<0.45) {
+            return false;
+        }
+        return true;
+    }
+    boolean isArmUp(){
+        if(arm.getCurrentPosition()>armInitial){
+            return true;
+        }
+        return false;
+    }
+    Action autonomousTurnRight(final int degree) {
+        Action a = new Action(new Action.Execute() {
+            @Override
+            public void onSetup() {
+                leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                leftDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
+                leftDrive.setPower(1);
+            }
+
+            @Override
+            public boolean onLoop() {
+                if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
+                    resetRobot();
+                    return true;
+                }
+                return false;
+            }
+        });
+        return a;
+    }
+    Action autonomousTurnLeft(final int degree) {
+        Action a = new Action(new Action.Execute() {
+            @Override
+            public void onSetup() {
+                rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                rightDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
+                rightDrive.setPower(1);
+            }
+
+            @Override
+            public boolean onLoop() {
+                if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
+                    resetRobot();
+                    return true;
+                }
+                return false;
+            }
+        });
+        return a;
+    }
+    Action autonomousArmMove(final int cm) {
+        Action a = new Action(new Action.Execute() {
+            @Override
+            public void onSetup() {
+                arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                arm.setTargetPosition((int) ((tickPerCentimeter/armToGear)*cm));
+                arm.setPower(-0.7);
+            }
+
+            @Override
+            public boolean onLoop() {
+                if (!arm.isBusy()) {
+                    resetRobot();
+                    return true;
+                }
+                return false;
+            }
+        });
+        return a;
+    }
+    Action autonomousClawOpen() {
+        Action a = new Action(new Action.Execute() {
+            @Override
+            public void onSetup() {
+                clawLeft.setPosition(0.4);
+                clawRight.setPosition(0.4);
+            }
+
+            @Override
+            public boolean onLoop() {
+                return isClawOpen();
+            }
+        });
+        return a;
+    }
+    Action autonomousClawClose() {
+        Action a = new Action(new Action.Execute() {
+            @Override
+            public void onSetup() {
+                clawLeft.setPosition(0.5);
+                clawRight.setPosition(0.5);
+            }
+
+            @Override
+            public boolean onLoop() {
+                return !isClawOpen();
+            }
+        });
+        return a;
+    }
+    Action autonomousDrive(final int centimeters) {
+        Action a = new Action(new Action.Execute() {
+            @Override
+            public void onSetup() {
+                leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                rightDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerCentimeter * centimeters));
+                leftDrive.setTargetPosition(leftDrive.getCurrentPosition() + (int) (tickPerCentimeter * centimeters));
+                leftDrive.setPower(1);
+                rightDrive.setPower(1);
+            }
+
+            @Override
+            public boolean onLoop() {
+                if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
+                    resetRobot();
+                    return true;
+                }
+                return false;
+            }
+        });
+        return a;
+    }
+    void autoTurnLeft(final int degree) {
+        actions.add(new Action(new Action.Execute() {
+            @Override
+            public void onSetup() {
+                rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                rightDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
+                rightDrive.setPower(1);
+            }
+
+            @Override
+            public boolean onLoop() {
+                if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
+                    resetRobot();
+                    return true;
+                }
+                return false;
+            }
+        }));
+    }
+    void autoTurnRight(final int degree) {
+        actions.add(new Action(new Action.Execute() {
+            @Override
+            public void onSetup() {
+                leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                leftDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
+                leftDrive.setPower(1);
+            }
+
+            @Override
+            public boolean onLoop() {
+                if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
+                    resetRobot();
+                    return true;
+                }
+                return false;
+            }
+        }));
     }
     void handleActions(){
         if (MODE == LINEBYLINE) {
@@ -155,6 +341,22 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 }
             }
         }
+    }
+    void showMessages(){
+        for(int s=0;s<permenant_messages.size();s++){
+            telemetry.addLine(permenant_messages.get(s));
+        }
+        showStats();
+    }
+    void showStats(){
+        telemetry.addData("Actions:", actions.size());
+        if(isClawOpen()) {
+            telemetry.addData("Claw State:", "Opened");
+        }else{
+            telemetry.addData("Claw State:", "Closed");
+        }
+        //        telemetry.addData("Seconds", (int) runtime.seconds());
+        //        telemetry.addData("Motor", leftDrive.getPower() + " " + rightDrive.getPower());
     }
     void handleGamepad1(){
         double turn = getTurnPower();
@@ -219,7 +421,6 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         arm.setPower(0);
         arm.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
     }
-
     void emergencyStop() {
         resetRobot();
         actions.clear();
@@ -233,17 +434,37 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         clawLeft.setPosition(0.55);
         clawRight.setPosition(0.55);
     }
+    void turnLeft(double forwardPower) {
+        if (forwardPower == 0) {
+            leftDrive.setPower(-1.0);
+            rightDrive.setPower(1.0);
+        } else {
+            if (forwardPower > 0) {
+                leftDrive.setPower(forwardPower / 8);
+                rightDrive.setPower(forwardPower);
+            } else {
+                rightDrive.setPower(forwardPower);
+                leftDrive.setPower(forwardPower / 8);
+            }
+        }
+    }
+    void turnRight(double forwardPower) {
+        if (forwardPower == 0) {
+            leftDrive.setPower(1.0);
+            rightDrive.setPower(-1.0);
+        } else {
+            if (forwardPower > 0) {
+                leftDrive.setPower(forwardPower);
+                //                rightDrive.setPower( forwardPower / 8);
+                rightDrive.setPower(forwardPower / 8);
+            } else {
+                rightDrive.setPower(forwardPower / 8);
+                leftDrive.setPower(forwardPower);
+            }
+        }
+    }
     void armMove(double speed){
         arm.setPower(speed);
-    }
-    boolean isClawOpen(){
-        return false;
-    }
-    boolean isArmUp(){
-        if(arm.getCurrentPosition()>armInitial){
-            return true;
-        }
-        return false;
     }
     void fullAuto() {
         resetRobot();
@@ -276,231 +497,17 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             }
         }));
     }
-
-    Action autonomousDrive(final int centimeters) {
-        Action a = new Action(new Action.Execute() {
-            @Override
-            public void onSetup() {
-                leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                rightDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerCentimeter * centimeters));
-                leftDrive.setTargetPosition(leftDrive.getCurrentPosition() + (int) (tickPerCentimeter * centimeters));
-                leftDrive.setPower(1);
-                rightDrive.setPower(1);
-            }
-
-            @Override
-            public boolean onLoop() {
-                if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
-                    resetRobot();
-                    return true;
-                }
-                return false;
-            }
-        });
-        return a;
-    }
-
-    void autoTurnLeft(final int degree) {
-        actions.add(new Action(new Action.Execute() {
-            @Override
-            public void onSetup() {
-                rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                rightDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
-                rightDrive.setPower(1);
-            }
-
-            @Override
-            public boolean onLoop() {
-                if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
-                    resetRobot();
-                    return true;
-                }
-                return false;
-            }
-        }));
-    }
-
-    Action autonomousTurnLeft(final int degree) {
-        Action a = new Action(new Action.Execute() {
-            @Override
-            public void onSetup() {
-                rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                rightDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
-                rightDrive.setPower(1);
-            }
-
-            @Override
-            public boolean onLoop() {
-                if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
-                    resetRobot();
-                    return true;
-                }
-                return false;
-            }
-        });
-        return a;
-    }
-
-    void autoTurnRight(final int degree) {
-        actions.add(new Action(new Action.Execute() {
-            @Override
-            public void onSetup() {
-                leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                leftDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
-                leftDrive.setPower(1);
-            }
-
-            @Override
-            public boolean onLoop() {
-                if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
-                    resetRobot();
-                    return true;
-                }
-                return false;
-            }
-        }));
-    }
-
-    Action autonomousTurnRight(final int degree) {
-        Action a = new Action(new Action.Execute() {
-            @Override
-            public void onSetup() {
-                leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                leftDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
-                leftDrive.setPower(1);
-            }
-
-            @Override
-            public boolean onLoop() {
-                if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
-                    resetRobot();
-                    return true;
-                }
-                return false;
-            }
-        });
-        return a;
-    }
-    Action autonomousArmMove(final int cm) {
-        Action a = new Action(new Action.Execute() {
-            @Override
-            public void onSetup() {
-                arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                arm.setTargetPosition((int) ((tickPerCentimeter/armToGear)*cm));
-                arm.setPower(-0.7);
-            }
-
-            @Override
-            public boolean onLoop() {
-                if (!arm.isBusy()) {
-                    resetRobot();
-                    return true;
-                }
-                return false;
-            }
-        });
-        return a;
-    }
-    Action autonomousClawOpen() {
-        Action a = new Action(new Action.Execute() {
-            @Override
-            public void onSetup() {
-                clawLeft.setPosition(0.4);
-                clawRight.setPosition(0.4);
-            }
-
-            @Override
-            public boolean onLoop() {
-                if (clawLeft.getPosition()==0.4&&clawRight.getPosition()==0.4) {
-                    return true;
-                }
-                return false;
-            }
-        });
-        return a;
-    }
-    Action autonomousClawClose() {
-        Action a = new Action(new Action.Execute() {
-            @Override
-            public void onSetup() {
-                clawLeft.setPosition(0.5);
-                clawRight.setPosition(0.5);
-            }
-
-            @Override
-            public boolean onLoop() {
-                if (clawLeft.getPosition()>0.4&&clawRight.getPosition()>0.4) {
-                    return true;
-                }
-                return false;
-            }
-        });
-        return a;
-    }
-    void turnLeft(double forwardPower) {
-        if (forwardPower == 0) {
-            leftDrive.setPower(-1.0);
-            rightDrive.setPower(1.0);
-        } else {
-            if (forwardPower > 0) {
-                leftDrive.setPower(forwardPower / 8);
-                rightDrive.setPower(forwardPower);
-            } else {
-                rightDrive.setPower(forwardPower);
-                leftDrive.setPower(forwardPower / 8);
-            }
-        }
-    }
-
-    void turnRight(double forwardPower) {
-        if (forwardPower == 0) {
-            leftDrive.setPower(1.0);
-            rightDrive.setPower(-1.0);
-        } else {
-            if (forwardPower > 0) {
-                leftDrive.setPower(forwardPower);
-                //                rightDrive.setPower( forwardPower / 8);
-                rightDrive.setPower(forwardPower / 8);
-            } else {
-                rightDrive.setPower(forwardPower / 8);
-                leftDrive.setPower(forwardPower);
-            }
-        }
-    }
-
-    double getDrivePower() {
-        double power = 0;
-        if (gamepad1.right_trigger != 0) {
-            power += gamepad1.right_trigger;
-        }
-        if (gamepad1.left_trigger != 0) {
-            power -= gamepad1.left_trigger/3;
-        }
-        return power;
-    }
-
-    double getTurnPower() {
-        if (gamepad1.dpad_left) {
-            return -1;
-        } else if (gamepad1.dpad_right) {
-            return 1;
-        } else {
-            return 0;
-        }
-    }
-    double getArmSpeed(){
-        double speed = 0;
-        if (gamepad2.right_trigger != 0) {
-            speed += gamepad2.right_trigger;
-        }
-        if (gamepad2.left_trigger != 0) {
-            speed -= gamepad2.left_trigger/4;
-        }
-        return speed;
-    }
-    @Override
-    public void stop() {
+    void collapseClaw(){
+        clawLeft.setPosition(0);
+        clawRight.setPosition(0);
+        buttonSleep();
+        buttonSleep();
+        buttonSleep();
+        clawLeft.setPosition(1);
+        buttonSleep();
+        buttonSleep();
+        buttonSleep();
+        clawRight.setPosition(0.8);
     }
 }
 
