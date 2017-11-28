@@ -62,6 +62,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private double armToGear=6.5/3;
     private ArrayList<Action> actions = new ArrayList<>();
     private ArrayList<String> permanent_messages =new ArrayList<>();
+
     @Override
     public void init() {
         leftDrive = hardwareMap.get(DcMotor.class, "l");
