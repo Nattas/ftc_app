@@ -34,8 +34,6 @@ import android.support.annotation.Nullable;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorController;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -63,7 +61,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private double tickPerDegree = ((placeSpinDiameter * tickPerCentimeter / 360) /231)*245;
     private double armToGear=6.5/3;
     private ArrayList<Action> actions = new ArrayList<>();
-    private ArrayList<String> permenant_messages=new ArrayList<>();
+    private ArrayList<String> permanent_messages =new ArrayList<>();
     @Override
     public void init() {
         leftDrive = hardwareMap.get(DcMotor.class, "l");
@@ -87,17 +85,14 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         //        leftDrive.setDirection(DcMotor.Direction.FORWARD);
 //        rightDrive.setDirection(DcMotor.Direction.REVERSE);
     }
-
     @Override
     public void init_loop() {
     }
-
     @Override
     public void start() {
         runtime.reset();
         clawOpen();
     }
-
     @Override
     public void loop() {
         checkEmergency();
@@ -109,6 +104,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     @Override
     public void stop() {
         collapseClaw();
+        resetRobot();
     }
     private Action[] getAutonomous() {
         Action[] autonomousTest = new Action[]{autonomousDrive(50), autonomousClawOpen(),autonomousDrive(20),autonomousClawClose(),autonomousArmMove(10),new Action(new Action.Execute() {
@@ -343,8 +339,8 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         }
     }
     void showMessages(){
-        for(int s=0;s<permenant_messages.size();s++){
-            telemetry.addLine(permenant_messages.get(s));
+        for(int s = 0; s< permanent_messages.size(); s++){
+            telemetry.addLine(permanent_messages.get(s));
         }
         showStats();
     }
