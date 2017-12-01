@@ -50,7 +50,8 @@ import com.qualcomm.robotcore.util.Range;
  */
 
 @TeleOp(name="OneStickPushBot", group="TeleOp")
-public class OpModePB extends com.qualcomm.robotcore.eventloop.opmode.OpMode
+@Disabled
+public class PushBot extends com.qualcomm.robotcore.eventloop.opmode.OpMode
 {
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
