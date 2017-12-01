@@ -59,18 +59,20 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private int LEFT = 2;
     private int MODE = MULTI;
     private int motorTickPerRevolution = (1440 / 86) * 100;
-    private double wheelDiameter = 2 * 5.1 * 3.14;
+    private double PI = 3.14;
+    private double wheelDiameter = 2 * 5.1 * PI;
     private double distanceBetween = 39;
     private double maxArmCentimeter = 20;
-    private double placeSpinDiameter = 2 * distanceBetween * 3.14;
-    private double placeOutSpinDiameter = distanceBetween * 3.14;
+    private double placeSpinDiameter = 2 * distanceBetween * PI;
+    private double placeOutSpinDiameter = distanceBetween * PI;
     private double tickPerCentimeter = (motorTickPerRevolution) / (wheelDiameter);
     private double armToGear = 3 / 6.5;
     private double armLength = 28.8;
-    private double armCmPerMotorRevolution = (2 * armLength * 3.14) * armToGear;
+    private double armCmPerMotorRevolution = (2 * armLength * PI) * armToGear;
     private double tickPerArmCentimeter = (motorTickPerRevolution / armCmPerMotorRevolution);
-    private double tickPerDegree = ((placeSpinDiameter * tickPerCentimeter / 360) / 231) * 245;
-    private double tickPerDegreeAtPlace = ((placeOutSpinDiameter * tickPerCentimeter / 360) / 231) * 245;
+    private double wheelDriveReduction = 231 / 245;
+    private double tickPerDegree = ((placeSpinDiameter * tickPerCentimeter / 360) / wheelDriveReduction);
+    private double tickPerDegreeAtPlace = ((placeOutSpinDiameter * tickPerCentimeter / 360) / wheelDriveReduction);
     private ArrayList<Action> actions = new ArrayList<>();
     private ArrayList<String> permanent_messages = new ArrayList<>();
 
@@ -90,7 +92,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     @Override
     public void start() {
         runtime.reset();
-        //        callibrateGyro();
+        //        calibrateGyro();
         clawOpen();
     }
 
@@ -110,7 +112,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     }
 
     Action[] getAutonomous() {
-        Action[] autonomous = new Action[]{
+        return new Action[]{
                 autonomousDrive(20),
                 autonomousClawOpen(),
                 autonomousDrive(20),
@@ -121,18 +123,8 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 autonomousArmMove(-9),
                 autonomousClawOpen(),
                 autonomousDrive(-20),
-                new Action(new Action.Execute() {
-                    @Override
-                    public void onSetup() {
-                        MODE = MULTI;
-                    }
-
-                    @Override
-                    public boolean onLoop() {
-                        return true;
-                    }
-                })};
-        return autonomous;
+                autonomousDone()
+        };
     }
 
     double getDrivePower() {
@@ -536,6 +528,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             fullAuto();
             buttonSleep();
         } else if (gamepad1.a) {
+            telemetry.addData("Illegal Action", "Driver Pressed 'A'");
         }
     }
 
@@ -553,9 +546,12 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             } else {
                 autoArm(armFinal);
             }
-        }
-        if (gamepad2.y) {
+            buttonSleep();
+        } else if (gamepad2.b) {
+            telemetry.addData("Illegal Action", "Sys Controller Pressed 'B'");
+        } else if (gamepad2.y) {
             collapseClaw();
+            buttonSleep();
         }
     }
 
@@ -593,7 +589,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         telemetry.addLine("Emergency Stop!");
     }
 
-    void callibrateGyro() {
+    void calibrateGyro() {
         BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
         parameters.angleUnit = BNO055IMU.AngleUnit.DEGREES;
         parameters.accelUnit = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
