@@ -80,6 +80,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         initializeMotors();
         initializeServos();
         collapseClaw();
+        collapseJulinator();
     }
 
     @Override
@@ -176,8 +177,12 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         return arm.getCurrentPosition() > armInitial;
     }
 
+    boolean isJulinatorDown() {
+        return julinator.getPosition() > 0.05;
+    }
+
     Action autonomousTurnRightAtPlace(final int degree) {
-        Action a = new Action(new Action.Execute() {
+        return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
                 leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
@@ -197,11 +202,10 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 return false;
             }
         });
-        return a;
     }
 
     Action autonomousTurnLeftAtPlace(final int degree) {
-        Action a = new Action(new Action.Execute() {
+        return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
                 rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
@@ -221,11 +225,10 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 return false;
             }
         });
-        return a;
     }
 
     Action autonomousTurnRight(final int degree) {
-        Action a = new Action(new Action.Execute() {
+        return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
                 leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
@@ -242,11 +245,10 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 return false;
             }
         });
-        return a;
     }
 
     Action autonomousTurnLeft(final int degree) {
-        Action a = new Action(new Action.Execute() {
+        return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
                 rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
@@ -263,11 +265,10 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 return false;
             }
         });
-        return a;
     }
 
     Action autonomousArmMove(final int cm) {
-        Action a = new Action(new Action.Execute() {
+        return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
                 arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
@@ -284,11 +285,39 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 return false;
             }
         });
+    }
+
+    Action autonomousJulinatorUp() {
+        Action a = new Action(new Action.Execute() {
+            @Override
+            public void onSetup() {
+                julinator.setPosition(0.05);
+            }
+
+            @Override
+            public boolean onLoop() {
+                return !isJulinatorDown();
+            }
+        });
         return a;
     }
 
+    Action autonomousJulinatorDown() {
+        return new Action(new Action.Execute() {
+            @Override
+            public void onSetup() {
+                julinator.setPosition(0.45);
+            }
+
+            @Override
+            public boolean onLoop() {
+                return isJulinatorDown();
+            }
+        });
+    }
+
     Action autonomousClawOpen() {
-        Action a = new Action(new Action.Execute() {
+        return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
                 clawLeft.setPosition(0.4);
@@ -300,11 +329,10 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 return isClawOpen();
             }
         });
-        return a;
     }
 
     Action autonomousClawClose() {
-        Action a = new Action(new Action.Execute() {
+        return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
                 clawLeft.setPosition(0.5);
@@ -316,11 +344,10 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 return !isClawOpen();
             }
         });
-        return a;
     }
 
     Action autonomousDrive(final int centimeters) {
-        Action a = new Action(new Action.Execute() {
+        return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
                 leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
@@ -340,12 +367,11 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 return false;
             }
         });
-        return a;
     }
 
     @Deprecated
     Action autonomousDriveToGyro(final float angle) {
-        Action a = new Action(new Action.Execute() {
+        return new Action(new Action.Execute() {
             int startPosition;
 
             @Override
@@ -364,7 +390,6 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 return false;
             }
         });
-        return a;
     }
 
     Action autonomousDone() {
@@ -676,6 +701,10 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     void collapseClaw() {
         clawLeft.setPosition(0.9);
         clawRight.setPosition(0.95);
+    }
+
+    void collapseJulinator() {
+        julinator.setPosition(0.05);
     }
 
     void initializeServos() {
