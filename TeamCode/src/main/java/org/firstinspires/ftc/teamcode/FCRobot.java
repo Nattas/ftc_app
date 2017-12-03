@@ -103,6 +103,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         handleGamepad2();
         handleActions();
         showMessages();
+        telemetry.addData("JUL",julinator.getPosition());
     }
 
     @Override
@@ -113,16 +114,9 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
 
     Action[] getAutonomous() {
         return new Action[]{
-                autonomousDrive(20),
-                autonomousClawOpen(),
-                autonomousDrive(20),
-                autonomousClawClose(),
                 autonomousArmMove(10),
-                autonomousTurnLeft(90),
-                autonomousDrive(30),
-                autonomousArmMove(-9),
-                autonomousClawOpen(),
-                autonomousDrive(-20),
+                autonomousJulinatorUp(),
+                autonomousJulinatorDown(),
                 autonomousDone()
         };
     }
@@ -170,7 +164,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     }
 
     boolean isJulinatorDown() {
-        return julinator.getPosition() > 0.05;
+        return julinator.getPosition() > 0.01;
     }
 
     Action autonomousTurnRightAtPlace(final int degree) {
@@ -270,6 +264,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
 
             @Override
             public boolean onLoop() {
+                telemetry.addData("Encoder",arm.getCurrentPosition());
                 if (!arm.isBusy()) {
                     resetArm();
                     return true;
@@ -283,7 +278,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         Action a = new Action(new Action.Execute() {
             @Override
             public void onSetup() {
-                julinator.setPosition(0.05);
+                julinator.setPosition(0);
             }
 
             @Override
@@ -541,14 +536,16 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             clawClose();
             buttonSleep();
         } else if (gamepad2.a) {
-            if (isArmUp()) {
-                autoArm(armInitial);
-            } else {
-                autoArm(armFinal);
-            }
+//            if (isArmUp()) {
+//                autoArm(armInitial);
+//            } else {
+//                autoArm(armFinal);
+//            }
+            actions.add(autonomousJulinatorDown());
             buttonSleep();
         } else if (gamepad2.b) {
             telemetry.addData("Illegal Action", "Sys Controller Pressed 'B'");
+            actions.add(autonomousJulinatorUp());
         } else if (gamepad2.y) {
             collapseClaw();
             buttonSleep();
@@ -700,7 +697,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     }
 
     void collapseJulinator() {
-        julinator.setPosition(0.05);
+        julinator.setPosition(0);
     }
 
     void initializeServos() {
@@ -717,7 +714,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
 
     void initializeJulinator() {
         julinator = hardwareMap.get(Servo.class, "jul");
-        julinator.setDirection(Servo.Direction.REVERSE);
+        julinator.setDirection(Servo.Direction.FORWARD);
     }
 
     void initializeMotors() {
