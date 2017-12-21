@@ -62,14 +62,14 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private int RED_TEAM = 2;
     private int TEAM = BLUE_TEAM;
     private int GLYPHBOX_NORTHWEST = 3;
-    private int GLYPHBOX_SOUTHWEST = 1;
+    private final int GLYPHBOX_SOUTHWEST = 1;
     private int GLYPHBOX_NORTHEAST = 4;
-    private int GLYPHBOX_SOUTHEAST = 2;
+    private final int GLYPHBOX_SOUTHEAST = 2;
     private int LOCATION = GLYPHBOX_SOUTHWEST;
-    private int ARM_1=1;
-    private int ARM_2=2;
-    private int ARM_3=3;
-    private int ARM_4=4;
+    private int ARM_1 = 1;
+    private int ARM_2 = 2;
+    private int ARM_3 = 3;
+    private int ARM_4 = 4;
     private int motorTickPerRevolution = (1440 / 86) * 100;//1674.41
     private int armMotorTickPerRevolution = (1440);
     private double PI = 3.14;
@@ -84,8 +84,8 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private double armCmPerMotorRevolution = (2 * armLength * PI);
     private double tickPerArmCentimeter = (armMotorTickPerRevolution / armToGear) / armCmPerMotorRevolution;
     private double wheelDriveReduction = 231 / 245;
-    private double tickPerDegree = (((placeSpinDiameter * tickPerCentimeter )/ 360) / 231)*245;
-    private double tickPerDegreeAtPlace = (((placeOutSpinDiameter * tickPerCentimeter) / 360) / 231)*245;//18.69023569
+    private double tickPerDegree = (((placeSpinDiameter * tickPerCentimeter) / 360) / 231) * 245;
+    private double tickPerDegreeAtPlace = (((placeOutSpinDiameter * tickPerCentimeter) / 360) / 231) * 245;//18.69023569
     private ArrayList<Action> actions = new ArrayList<>();
     private ArrayList<String> permanent_messages = new ArrayList<>();
 
@@ -97,11 +97,15 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         initializeServos();
         collapseClaw();
         collapseJulinator();
+        fullAuto();
     }
 
     @Override
     public void init_loop() {
-        handleModeChange();
+        //        handleModeChange();
+        showMessages();
+        checkEmergency();
+        handleActions();
     }
 
     @Override
@@ -118,7 +122,6 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         handleGamepad2();
         handleActions();
         showMessages();
-
         telemetry.addData("Arm-Encoder", arm.getCurrentPosition());
         telemetry.addData("Arm-Target", arm.getTargetPosition());
         telemetry.addData("Jul-Position", julinator.getPosition());
@@ -130,22 +133,36 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         resetRobot();
     }
 
-    Action[] getAutonomous() {
-        return new Action[]{
+    Action[] getAutonomous(int location) {
+        Action[] SW = new Action[]{
+                autonomousClawClose(),
                 autonomousArmMove(20),
-//                autonomousDrive(50),
-//                autonomousTurnLeftAtPlace(90),
-//                autonomousDrive(-20),
-//                autonomousTurnRightAtPlace(360),
-//                autonomousDrive(100),
-//                autonomousTurnLeftAtPlace(90),
-//                autonomousDrive(30),
-//                autonomousDrive(-50),
-//                autonomousJulinatorDown(),
-//                autonomousTurnLeftAtPlace(180),
-//                autonomousJulinatorUp(),
-                autonomousDone()
+                autonomousTurnAtPlace(RIGHT,180),
+                autonomousDrive(99),
+                autonomousTurnAtPlace(RIGHT, 90),
+                autonomousDrive(28),
+                autonomousArmMove(-10),
+                autonomousClawOpen(),
+                autonomousDrive(-14)
         };
+        Action[] SE = new Action[]{
+                autonomousClawClose(),
+                autonomousArmMove(20),
+                autonomousDrive(99),
+                autonomousTurnAtPlace(RIGHT, 90),
+                autonomousDrive(28),
+                autonomousArmMove(-10),
+                autonomousClawOpen(),
+                autonomousDrive(-14)
+        };
+        switch(location){
+            case GLYPHBOX_SOUTHWEST:
+                return SW;
+            case GLYPHBOX_SOUTHEAST:
+                return SE;
+            default:
+                return new Action[0];
+        }
     }
 
     double getDrivePower() {
@@ -165,7 +182,6 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
 
     double getTurnPower() {
         double power = gamepad1.left_stick_x;
-
         if (gamepad1.a) {
             return power / 8;
         } else {
@@ -189,29 +205,31 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     }
 
     int getArmLocation() {
-        int armTotal= (int) (armFinal-armInitial);
-        int step= (armTotal/4);
-        int first=armInitial;
-        int second=armInitial+step;
-        int third=armInitial+2*step;
-        int forth=armInitial+3*step;
-        int pos=arm.getCurrentPosition();
-        if(pos<armFinal&&pos>=forth){
+        int armTotal = (int) (armFinal - armInitial);
+        int step = (armTotal / 4);
+        int first = armInitial;
+        int second = armInitial + step;
+        int third = armInitial + 2 * step;
+        int forth = armInitial + 3 * step;
+        int pos = arm.getCurrentPosition();
+        if (pos < armFinal && pos >= forth) {
             return ARM_4;
-        }else if(pos<forth&&pos>=third){
+        } else if (pos < forth && pos >= third) {
             return ARM_3;
-        }else if(pos<third&&pos>=second){
+        } else if (pos < third && pos >= second) {
             return ARM_2;
-        }else if(pos<second&&pos>=first){
+        } else if (pos < second && pos >= first) {
             return ARM_1;
-        }else{
+        } else {
             return ARM_1;
         }
     }
-    double toServo(double r){
-        r+=1.0;
-        return r/4;
+
+    double toServo(double r) {
+        r += 1.0;
+        return r / 4;
     }
+
     boolean isJulinatorDown() {
         return julinator.getPosition() > 0.05;
     }
@@ -221,10 +239,10 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             @Override
             public void onSetup() {
                 leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                leftDrive.setTargetPosition(leftDrive.getCurrentPosition() + direction*((int) (tickPerDegreeAtPlace * degree)));
+                leftDrive.setTargetPosition(leftDrive.getCurrentPosition() + direction * ((int) (tickPerDegreeAtPlace * degree)));
                 leftDrive.setPower(1);
                 rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                rightDrive.setTargetPosition(rightDrive.getCurrentPosition() - direction*((int) (tickPerDegreeAtPlace * degree)));
+                rightDrive.setTargetPosition(rightDrive.getCurrentPosition() - direction * ((int) (tickPerDegreeAtPlace * degree)));
                 rightDrive.setPower(1);
             }
 
@@ -239,15 +257,15 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         });
     }
 
-    Action autonomousTurn(final int direction,final int degree) {
+    Action autonomousTurn(final int direction, final int degree) {
         return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
-                if(direction==RIGHT) {
+                if (direction == RIGHT) {
                     leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
                     leftDrive.setTargetPosition(leftDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
                     leftDrive.setPower(1);
-                }else{
+                } else {
                     rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
                     rightDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
                     rightDrive.setPower(1);
@@ -276,7 +294,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
 
             @Override
             public boolean onLoop() {
-             if (!arm.isBusy()) {
+                if (!arm.isBusy()) {
                     resetArm();
                     return true;
                 }
@@ -398,18 +416,19 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             @Override
             public boolean onLoop() {
                 resetRobot();
-                MODE=MULTI;
+                MODE = MULTI;
                 actions.clear();
                 return true;
             }
         });
     }
 
-    void autoTurn(final int direction,final int degree) {
+    void autoTurn(final int direction, final int degree) {
         prepForAuto();
-        actions.add(autonomousTurnAtPlace(direction,degree));
+        actions.add(autonomousTurnAtPlace(direction, degree));
         actions.add(autonomousDone());
     }
+
     void autoArm(final int cm) {
         prepForAuto();
         actions.add(autonomousArmMove(cm));
@@ -421,20 +440,22 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         actions.add(autonomousDrive(centimeters));
         actions.add(autonomousDone());
     }
+
     void autoReorientForCube(int direction) {
         prepForAuto();
         actions.add(autonomousDrive(-20));
-        actions.add(autonomousTurnAtPlace(direction,85));
-        actions.add(autonomousTurn(-direction,45));
-        actions.add(autonomousTurnAtPlace(-direction,30));
+        actions.add(autonomousTurnAtPlace(direction, 85));
+        actions.add(autonomousTurn(-direction, 45));
+        actions.add(autonomousTurnAtPlace(-direction, 30));
         actions.add(autonomousDone());
     }
 
-    void prepForAuto(){
+    void prepForAuto() {
         resetRobot();
         actions.clear();
         MODE = LINEBYLINE;
     }
+
     void handleActions() {
         if (MODE == LINEBYLINE) {
             if (actions.size() != 0) {
@@ -487,11 +508,10 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         } else {
             telemetry.addData("Claw State:", "Closed");
         }
-        if(MODE==MULTI){
-            telemetry.addData("Mode","MultiAction");
-        }else{
-            telemetry.addData("Mode","ActionByAction");
-
+        if (MODE == MULTI) {
+            telemetry.addData("Mode", "MultiAction");
+        } else {
+            telemetry.addData("Mode", "ActionByAction");
         }
         //        telemetry.addData("Seconds", (int) runtime.seconds());
         //        telemetry.addData("Motor", leftDrive.getPower() + " " + rightDrive.getPower());
@@ -506,10 +526,11 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     void clearMessages() {
         permanent_messages.clear();
     }
+
     void handleGamepad1() {
         double turn = getTurnPower();
         if (actions.size() == 0) {
-            if(!rightDrive.isBusy()&&!leftDrive.isBusy()) {
+            if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
                 if (turn != 0) {
                     if (turn < 0) {
                         turnLeft(getDrivePower());
@@ -522,7 +543,6 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 }
             }
         }
-
         if (gamepad1.b) {
             //            autoDrive(100);
             buttonSleep();
@@ -530,36 +550,36 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             fullAuto();
             buttonSleep();
         } else if (gamepad1.left_bumper) {
-            autoTurn(LEFT,45);
+            autoTurn(LEFT, 45);
             buttonSleep();
         } else if (gamepad1.right_bumper) {
-            autoTurn(RIGHT,45);
+            autoTurn(RIGHT, 45);
             buttonSleep();
-        } else if (gamepad1.dpad_left){
-            autoTurn(LEFT,90);
+        } else if (gamepad1.dpad_left) {
+            autoTurn(LEFT, 90);
             buttonSleep();
-        } else if(gamepad1.dpad_right){
-            autoTurn(RIGHT,90);
+        } else if (gamepad1.dpad_right) {
+            autoTurn(RIGHT, 90);
             buttonSleep();
-        } else if(gamepad1.dpad_up){
+        } else if (gamepad1.dpad_up) {
             autoDrive(20);
             buttonSleep();
-        }else if(gamepad1.dpad_down){
+        } else if (gamepad1.dpad_down) {
             autoDrive(-20);
             buttonSleep();
         }
     }
 
     void handleGamepad2() {
-        if(actions.size()==0) {
-            if(!arm.isBusy()) {
+        if (actions.size() == 0) {
+            if (!arm.isBusy()) {
                 armMove(getArmSpeed());
             }
         }
-//        if(gamepad2.left_stick_x!=0){
-//            julinator.setPosition(toServo(-gamepad2.left_stick_x));
-//            buttonSleep();
-//        }
+        //        if(gamepad2.left_stick_x!=0){
+        //            julinator.setPosition(toServo(-gamepad2.left_stick_x));
+        //            buttonSleep();
+        //        }
         if (gamepad2.left_bumper) {
             clawOpen();
             buttonSleep();
@@ -567,9 +587,9 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             clawClose();
             buttonSleep();
         } else if (gamepad2.a) {
-            if(isJulinatorDown()){
+            if (isJulinatorDown()) {
                 jullinatorUp();
-            }else{
+            } else {
                 jullinatorDown();
             }
             buttonSleep();
@@ -579,10 +599,10 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         } else if (gamepad2.y) {
             collapseClaw();
             buttonSleep();
-        }else if(gamepad2.dpad_up){
+        } else if (gamepad2.dpad_up) {
             autoArm(20);
             buttonSleep();
-        }else if(gamepad2.dpad_down){
+        } else if (gamepad2.dpad_down) {
             autoArm(-20);
             buttonSleep();
         }
@@ -621,7 +641,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     }
 
     void resetRobot() {
-//        MODE=MULTI;
+        //        MODE=MULTI;
         leftDrive.setPower(0);
         rightDrive.setPower(0);
         leftDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -660,13 +680,15 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         clawLeft.setPosition(0.55);
         clawRight.setPosition(0.55);
     }
-    void jullinatorUp(){
+
+    void jullinatorUp() {
         julinator.setPosition(0);
     }
-    void jullinatorDown(){
-        julinator.setPosition(0.45);
 
+    void jullinatorDown() {
+        julinator.setPosition(0.45);
     }
+
     void turnLeft(double forwardPower) {
         if (forwardPower == 0) {
             leftDrive.setPower(getTurnPower());
@@ -704,9 +726,8 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
 
     void fullAuto() {
         prepForAuto();
-        actions.addAll(Arrays.asList(getAutonomous()));
+        actions.addAll(Arrays.asList(getAutonomous(GLYPHBOX_SOUTHWEST)));
     }
-
 
     void collapseClaw() {
         clawLeft.setPosition(0.6);
