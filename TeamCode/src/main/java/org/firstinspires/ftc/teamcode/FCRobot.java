@@ -164,11 +164,10 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         Action[] SE = new Action[]{
                 autonomousClawClose(),
                 autonomousArmMove(30),
-                autonomousJulinatorDown(),
+                autonomousJulinatorScan(),
                 autonomousWait(500),
-                autonomousTurnAtPlace(RIGHT, 50,0.5),
-                autonomousJulinatorUp(),
-                autonomousTurnAtPlace(RIGHT, 130,0.5),
+                autonomousColorScan(),
+                autonomousWait(500),
                 autonomousDrive(65,1),
                 autonomousTurnAtPlace(LEFT, 90,0.5),
                 autonomousDrive(38,0.8),
@@ -181,14 +180,29 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         Action[] NW = new Action[]{
                 autonomousClawClose(),
                 autonomousArmMove(30),
-                autonomousJulinatorDown(),
+                autonomousJulinatorScan(),
                 autonomousWait(500),
-                autonomousTurnAtPlace(LEFT, 50,0.5),
-                autonomousJulinatorUp(),
-                autonomousTurnAtPlace(LEFT, 130,0.5),
-                autonomousDrive(103,1),
+                autonomousColorScan(),
+                autonomousWait(500),
+                autonomousDrive(101,1),
                 autonomousTurnAtPlace(LEFT, 90,0.5),
                 autonomousDrive(32,1),
+                autonomousArmMove(-15),
+                autonomousClawOpen(),
+                autonomousDrive(-14,1)
+        };
+        Action[] NE = new Action[]{
+                autonomousClawClose(),
+                autonomousArmMove(30),
+                autonomousJulinatorScan(),
+                autonomousWait(500),
+                autonomousColorScan(),
+                autonomousWait(500),
+                autonomousDrive(65,1),
+                autonomousTurnAtPlace(RIGHT, 90,0.5),
+                autonomousDrive(38,0.8),
+                autonomousTurnAtPlace(LEFT, 90,0.5),
+                autonomousDrive(20,1),
                 autonomousArmMove(-15),
                 autonomousClawOpen(),
                 autonomousDrive(-14,1)
@@ -199,7 +213,9 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             case GLYPHBOX_SOUTHEAST:
                 return SE;
             case GLYPHBOX_NORTHWEST:
-                return SE;
+                return NW;
+            case GLYPHBOX_NORTHEAST:
+                return NE;
             default:
                 return new Action[0];
         }
