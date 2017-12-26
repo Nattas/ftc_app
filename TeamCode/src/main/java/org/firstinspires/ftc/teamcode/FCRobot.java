@@ -39,6 +39,13 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import org.firstinspires.ftc.robotcore.external.ClassFactory;
+import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
+import org.firstinspires.ftc.robotcore.external.navigation.RelicRecoveryVuMark;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackable;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackables;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -51,7 +58,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private Servo clawLeft = null;
     private Servo clawRight = null;
     private Servo julinator = null;
-    private ColorSensor color=null;
+    private ColorSensor color = null;
     private BNO055IMU gyro = null;
     private int armInitial = 0;
     private double armFinal = 0;
@@ -85,12 +92,13 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private double armLength = 28.8;
     private double armCmPerMotorRevolution = (2 * armLength * PI);
     private double tickPerArmCentimeter = (armMotorTickPerRevolution / armToGear) / armCmPerMotorRevolution;
-    private double wheelDriveReduction = 231 / 245;
     private double tickPerDegree = (((placeSpinDiameter * tickPerCentimeter) / 360) / 231) * 245;
     private double tickPerDegreeAtPlace = (((placeOutSpinDiameter * tickPerCentimeter) / 360) / 231) * 245;//18.69023569
-    private boolean isReady=false;
+    private boolean isReady = false;
     private ArrayList<Action> actions = new ArrayList<>();
     private ArrayList<String> permanent_messages = new ArrayList<>();
+    private boolean isAutoMotors = false;
+    private boolean isAutoParallel = false;
 
     @Override
     public void init() {
@@ -105,16 +113,16 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     @Override
     public void init_loop() {
         //        handleModeChange();
-        if(!isReady){
+        if (!isReady) {
             telemetry.addData("Inst", "Use DPAD to set location (Relative To Cypherbox)");
             telemetry.addData("Inst", "Use A or B to set team color (A-Blue,B-Red)");
             checkAutoMode();
             checkTeamMode();
-            isReady=(LOCATION != -1 && TEAM != -1);
-            if(isReady){
+            isReady = (LOCATION != -1 && TEAM != -1);
+            if (isReady) {
                 fullAuto();
             }
-        }else {
+        } else {
             checkEmergency();
             handleActions();
         }
@@ -149,17 +157,12 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     Action[] getAutonomous(int location) {
         Action[] SW = new Action[]{
                 autonomousClawClose(),
-                autonomousArmMove(30),
+                autonomousArmMove(40),
                 autonomousJulinatorScan(),
                 autonomousWait(500),
                 autonomousColorScan(),
                 autonomousWait(500),
-                autonomousDrive(101,1),
-                autonomousTurnAtPlace(RIGHT, 90,0.5),
-                autonomousDrive(32,1),
-                autonomousArmMove(-15),
-                autonomousClawOpen(),
-                autonomousDrive(-14,1)
+                autonomousVuforia(GLYPHBOX_SOUTHWEST)
         };
         Action[] SE = new Action[]{
                 autonomousClawClose(),
@@ -168,28 +171,16 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 autonomousWait(500),
                 autonomousColorScan(),
                 autonomousWait(500),
-                autonomousDrive(65,1),
-                autonomousTurnAtPlace(LEFT, 90,0.5),
-                autonomousDrive(38,0.8),
-                autonomousTurnAtPlace(RIGHT, 90,0.5),
-                autonomousDrive(20,1),
-                autonomousArmMove(-15),
-                autonomousClawOpen(),
-                autonomousDrive(-14,1)
+                autonomousVuforia(GLYPHBOX_SOUTHEAST)
         };
         Action[] NW = new Action[]{
                 autonomousClawClose(),
-                autonomousArmMove(30),
+                autonomousArmMove(40),
                 autonomousJulinatorScan(),
                 autonomousWait(500),
                 autonomousColorScan(),
                 autonomousWait(500),
-                autonomousDrive(101,1),
-                autonomousTurnAtPlace(LEFT, 90,0.5),
-                autonomousDrive(32,1),
-                autonomousArmMove(-15),
-                autonomousClawOpen(),
-                autonomousDrive(-14,1)
+                autonomousVuforia(GLYPHBOX_NORTHWEST)
         };
         Action[] NE = new Action[]{
                 autonomousClawClose(),
@@ -198,14 +189,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 autonomousWait(500),
                 autonomousColorScan(),
                 autonomousWait(500),
-                autonomousDrive(65,1),
-                autonomousTurnAtPlace(RIGHT, 90,0.5),
-                autonomousDrive(38,0.8),
-                autonomousTurnAtPlace(LEFT, 90,0.5),
-                autonomousDrive(20,1),
-                autonomousArmMove(-15),
-                autonomousClawOpen(),
-                autonomousDrive(-14,1)
+                autonomousVuforia(GLYPHBOX_NORTHEAST)
         };
         switch (location) {
             case GLYPHBOX_SOUTHWEST:
@@ -256,11 +240,6 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         return speed * 0.7;
     }
 
-    double toServo(double r) {
-        r += 1.0;
-        return r / 4;
-    }
-
     boolean isClawOpen() {
         return clawLeft.getPosition() < 0.5 && clawRight.getPosition() < 0.5;
     }
@@ -271,27 +250,6 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
 
     boolean isJulinatorDown() {
         return isJulinatorNotHome();
-    }
-
-    int getArmLocation() {
-        int armTotal = (int) (armFinal - armInitial);
-        int step = (armTotal / 4);
-        int first = armInitial;
-        int second = armInitial + step;
-        int third = armInitial + 2 * step;
-        int forth = armInitial + 3 * step;
-        int pos = arm.getCurrentPosition();
-        if (pos < armFinal && pos >= forth) {
-            return ARM_4;
-        } else if (pos < forth && pos >= third) {
-            return ARM_3;
-        } else if (pos < third && pos >= second) {
-            return ARM_2;
-        } else if (pos < second && pos >= first) {
-            return ARM_1;
-        } else {
-            return ARM_1;
-        }
     }
 
     String getLocationString() {
@@ -316,9 +274,9 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     String getTeamString() {
         if (TEAM == BLUE_TEAM) {
             return "Blue";
-        } else if(TEAM==RED_TEAM){
+        } else if (TEAM == RED_TEAM) {
             return "Red";
-        }else{
+        } else {
             return "No Selected";
         }
     }
@@ -327,6 +285,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
+                isAutoMotors = true;
                 leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
                 leftDrive.setTargetPosition(leftDrive.getCurrentPosition() + direction * ((int) (tickPerDegreeAtPlace * degree)));
                 leftDrive.setPower(power);
@@ -339,6 +298,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             public boolean onLoop() {
                 if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
                     resetRobot();
+                    isAutoMotors = false;
                     return true;
                 }
                 return false;
@@ -350,6 +310,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
+                isAutoMotors = true;
                 if (direction == RIGHT) {
                     leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
                     leftDrive.setTargetPosition(leftDrive.getCurrentPosition() + (int) (tickPerDegree * degree));
@@ -365,6 +326,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             public boolean onLoop() {
                 if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
                     resetRobot();
+                    isAutoMotors = false;
                     return true;
                 }
                 return false;
@@ -376,6 +338,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
+                isAutoParallel = true;
                 arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
                 arm.setTargetPosition((int) (arm.getCurrentPosition() + (tickPerArmCentimeter * cm)));
                 arm.setPower(1);
@@ -385,6 +348,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             public boolean onLoop() {
                 if (!arm.isBusy()) {
                     resetArm();
+                    isAutoParallel = false;
                     return true;
                 }
                 return false;
@@ -419,6 +383,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             }
         });
     }
+
     Action autonomousJulinatorScan() {
         return new Action(new Action.Execute() {
             @Override
@@ -432,39 +397,40 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             }
         });
     }
+
     Action autonomousColorScan() {
         return new Action(new Action.Execute() {
-            ArrayList<Action> miniaction=new ArrayList<>();
+            ArrayList<Action> miniaction = new ArrayList<>();
+
             @Override
             public void onSetup() {
                 miniaction.add(autonomousWait(500));
-                miniaction.add(autonomousTurnAtPlace(RIGHT,8,0.3));
+                miniaction.add(autonomousTurnAtPlace(RIGHT, 8, 0.3));
                 miniaction.add(autonomousJulinatorDown());
                 color.enableLed(false);
-                boolean isRed=(color.red()>color.blue());
-//                permanent_messages.add("Color: "+color.red()+" "+color.green()+" "+color.blue());
-                if(TEAM==RED_TEAM){
-                    if(!isRed){
-                        miniaction.add(autonomousTurnAtPlace(LEFT,38,0.2));
+                boolean isRed = (color.red() > color.blue());
+                //                permanent_messages.add("Color: "+color.red()+" "+color.green()+" "+color.blue());
+                if (TEAM == RED_TEAM) {
+                    if (!isRed) {
+                        miniaction.add(autonomousTurnAtPlace(LEFT, 18, 0.2));
                         miniaction.add(autonomousJulinatorUp());
-                        miniaction.add(autonomousTurnAtPlace(LEFT,150,0.5));
-                    }else{
-                        miniaction.add(autonomousTurnAtPlace(RIGHT,32,0.2));
+                        miniaction.add(autonomousTurnAtPlace(RIGHT, 10, 0.5));
+                    } else {
+                        miniaction.add(autonomousTurnAtPlace(RIGHT, 12, 0.2));
                         miniaction.add(autonomousJulinatorUp());
-                        miniaction.add(autonomousTurnAtPlace(RIGHT,140,0.5));
+                        miniaction.add(autonomousTurnAtPlace(LEFT, 20, 0.5));
                     }
-                }else{
-                    if(isRed){
-                        miniaction.add(autonomousTurnAtPlace(LEFT,38,0.2));
+                } else {
+                    if (isRed) {
+                        miniaction.add(autonomousTurnAtPlace(LEFT, 18, 0.2));
                         miniaction.add(autonomousJulinatorUp());
-                        miniaction.add(autonomousTurnAtPlace(LEFT,150,0.5));
-                    }else{
-                        miniaction.add(autonomousTurnAtPlace(RIGHT,32,0.2));
+                        miniaction.add(autonomousTurnAtPlace(RIGHT, 10, 0.5));
+                    } else {
+                        miniaction.add(autonomousTurnAtPlace(RIGHT, 12, 0.2));
                         miniaction.add(autonomousJulinatorUp());
-                        miniaction.add(autonomousTurnAtPlace(RIGHT,140,0.5));
+                        miniaction.add(autonomousTurnAtPlace(LEFT, 20, 0.5));
                     }
                 }
-
             }
 
             @Override
@@ -480,10 +446,197 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                         miniaction.remove(0);
                     }
                 }
-                return (miniaction.size()==0);
+                return (miniaction.size() == 0);
             }
         });
     }
+
+    Action autonomousVuforia(final int heading) {
+        return new Action(new Action.Execute() {
+            ArrayList<Action> miniaction = new ArrayList<>();
+            OpenGLMatrix lastLocation = null;
+            VuforiaLocalizer vuforia;
+            RelicRecoveryVuMark mark;
+            VuforiaTrackable relicTemplate;
+            VuforiaTrackables relicTrackables;
+            boolean foundMark = false;
+
+            void initVuforia() {
+                int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+                VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters(cameraMonitorViewId);
+                parameters.vuforiaLicenseKey = "AcJU0s7/////AAAAmYAF+R25rU5elxvWG+jzOfkipjv/EqlAWEJ12K0WFESUlxRj3trJYggUrl1cGvVLLpEbh56nvKa7zL9mYbG3P6lcCeUUNtXMKwg7QzPfJBG8HRas8zkQPFahOEgvii83GQCKLihiRGi2UFmlK3RkzVi6NU2d/9v8q1lrFfAT2lJQsqyThtcaYKHbDt9DFQzSTwcQLz7Pblr1cM57P7H3T/XovWdMOZBKeXzT8G00c5J4rRtWmq+Pvk83YFxfAiA22sFPepjkt2eke/QeMiCFE6hwRoq/WlGFsKDhMnGDAy16UlexgrjEQn85vclQxkJh6/Rd7IJ6FF0aCp8ewg29ZV14bWxdr1GEyWwh1BJ50YFQ";
+                parameters.cameraDirection = VuforiaLocalizer.CameraDirection.BACK;
+                this.vuforia = ClassFactory.createVuforiaLocalizer(parameters);
+                relicTrackables = this.vuforia.loadTrackablesFromAsset("RelicVuMark");
+                relicTemplate = relicTrackables.get(0);
+                relicTemplate.setName("relicVuMarkTemplate"); // can help in debugging; otherwise not necessary
+                relicTrackables.activate();
+            }
+
+            void searchVuforia() {
+                RelicRecoveryVuMark vuMark = RelicRecoveryVuMark.from(relicTemplate);
+                if (vuMark != RelicRecoveryVuMark.UNKNOWN) {
+                    mark = vuMark;
+                    foundMark = true;
+                    addActions();
+                }
+            }
+
+            void addActions() {
+                if (mark == RelicRecoveryVuMark.CENTER) {
+                    switch (heading) {
+                        case GLYPHBOX_SOUTHWEST:
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 180, 0.4));
+                            miniaction.add(autonomousDrive(89, 1));
+                            miniaction.add(autonomousTurnAtPlace(RIGHT, 90, 0.5));
+                            miniaction.add(autonomousDrive(32, 0.5));
+                            miniaction.add(autonomousArmMove(-20));
+                            miniaction.add(autonomousClawOpen());
+                            miniaction.add(autonomousDrive(-14, 1));
+                            break;
+                        case GLYPHBOX_SOUTHEAST:
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 180, 0.4));
+                            miniaction.add(autonomousDrive(65, 1));
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 90, 0.5));
+                            miniaction.add(autonomousDrive(24, 0.8));
+                            miniaction.add(autonomousTurnAtPlace(RIGHT, 90, 0.5));
+                            miniaction.add(autonomousDrive(20, 1));
+                            miniaction.add(autonomousArmMove(-15));
+                            miniaction.add(autonomousClawOpen());
+                            miniaction.add(autonomousDrive(-14, 1));
+                            break;
+                        case GLYPHBOX_NORTHWEST:
+                            miniaction.add(autonomousDrive(89, 1));
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 90, 0.5));
+                            miniaction.add(autonomousDrive(32, 0.5));
+                            miniaction.add(autonomousArmMove(-20));
+                            miniaction.add(autonomousClawOpen());
+                            miniaction.add(autonomousDrive(-14, 1));
+                            break;
+                        case GLYPHBOX_NORTHEAST:
+                            miniaction.add(autonomousDrive(65, 1));
+                            miniaction.add(autonomousTurnAtPlace(RIGHT, 90, 0.5));
+                            miniaction.add(autonomousDrive(24, 0.8));
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 90, 0.5));
+                            miniaction.add(autonomousDrive(20, 1));
+                            miniaction.add(autonomousArmMove(-15));
+                            miniaction.add(autonomousClawOpen());
+                            miniaction.add(autonomousDrive(-14, 1));
+                            break;
+                    }
+                } else if (mark == RelicRecoveryVuMark.LEFT) {
+                    switch (heading) {
+                        case GLYPHBOX_SOUTHWEST:
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 180, 0.4));
+                            miniaction.add(autonomousDrive(110, 1));
+                            miniaction.add(autonomousTurnAtPlace(RIGHT, 90, 0.5));
+                            miniaction.add(autonomousDrive(32, 0.5));
+                            miniaction.add(autonomousArmMove(-20));
+                            miniaction.add(autonomousClawOpen());
+                            miniaction.add(autonomousDrive(-14, 1));
+                            break;
+                        case GLYPHBOX_SOUTHEAST:
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 180, 0.4));
+                            miniaction.add(autonomousDrive(65, 1));
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 90, 0.5));
+                            miniaction.add(autonomousDrive(5, 0.8));
+                            miniaction.add(autonomousTurnAtPlace(RIGHT, 90, 0.5));
+                            miniaction.add(autonomousDrive(20, 1));
+                            miniaction.add(autonomousArmMove(-15));
+                            miniaction.add(autonomousClawOpen());
+                            miniaction.add(autonomousDrive(-14, 1));
+                            break;
+                        case GLYPHBOX_NORTHWEST:
+                            miniaction.add(autonomousDrive(110, 1));
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 90, 0.5));
+                            miniaction.add(autonomousDrive(32, 0.5));
+                            miniaction.add(autonomousArmMove(-20));
+                            miniaction.add(autonomousClawOpen());
+                            miniaction.add(autonomousDrive(-14, 1));
+                            break;
+                        case GLYPHBOX_NORTHEAST:
+                            miniaction.add(autonomousDrive(65, 1));
+                            miniaction.add(autonomousTurnAtPlace(RIGHT, 90, 0.5));
+                            miniaction.add(autonomousDrive(5, 0.8));
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 90, 0.5));
+                            miniaction.add(autonomousDrive(20, 1));
+                            miniaction.add(autonomousArmMove(-15));
+                            miniaction.add(autonomousClawOpen());
+                            miniaction.add(autonomousDrive(-14, 1));
+                            break;
+                    }
+                } else if (mark == RelicRecoveryVuMark.RIGHT) {
+                    switch (heading) {
+                        case GLYPHBOX_SOUTHWEST:
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 180, 0.4));
+                            miniaction.add(autonomousDrive(70, 1));
+                            miniaction.add(autonomousTurnAtPlace(RIGHT, 90, 0.5));
+                            miniaction.add(autonomousDrive(32, 0.5));
+                            miniaction.add(autonomousArmMove(-20));
+                            miniaction.add(autonomousClawOpen());
+                            miniaction.add(autonomousDrive(-14, 1));
+                            break;
+                        case GLYPHBOX_SOUTHEAST:
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 180, 0.4));
+                            miniaction.add(autonomousDrive(65, 1));
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 90, 0.5));
+                            miniaction.add(autonomousDrive(43, 0.8));
+                            miniaction.add(autonomousTurnAtPlace(RIGHT, 90, 0.5));
+                            miniaction.add(autonomousDrive(20, 1));
+                            miniaction.add(autonomousArmMove(-15));
+                            miniaction.add(autonomousClawOpen());
+                            miniaction.add(autonomousDrive(-14, 1));
+                            break;
+                        case GLYPHBOX_NORTHWEST:
+                            miniaction.add(autonomousDrive(70, 1));
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 90, 0.5));
+                            miniaction.add(autonomousDrive(32, 0.5));
+                            miniaction.add(autonomousArmMove(-20));
+                            miniaction.add(autonomousClawOpen());
+                            miniaction.add(autonomousDrive(-14, 1));
+                            break;
+                        case GLYPHBOX_NORTHEAST:
+                            miniaction.add(autonomousDrive(65, 1));
+                            miniaction.add(autonomousTurnAtPlace(RIGHT, 90, 0.5));
+                            miniaction.add(autonomousDrive(43, 0.8));
+                            miniaction.add(autonomousTurnAtPlace(LEFT, 90, 0.5));
+                            miniaction.add(autonomousDrive(20, 1));
+                            miniaction.add(autonomousArmMove(-15));
+                            miniaction.add(autonomousClawOpen());
+                            miniaction.add(autonomousDrive(-14, 1));
+                            break;
+                    }
+                }
+            }
+
+            @Override
+            public void onSetup() {
+                initVuforia();
+            }
+
+            @Override
+            public boolean onLoop() {
+                if (foundMark) {
+                    if (miniaction.size() != 0) {
+                        if (miniaction.get(0).isAlive()) {
+                            if (!miniaction.get(0).isSetup()) {
+                                miniaction.get(0).setup();
+                            } else {
+                                miniaction.get(0).loop();
+                            }
+                        } else {
+                            miniaction.remove(0);
+                        }
+                    }
+                    return (miniaction.size() == 0);
+                } else {
+                    searchVuforia();
+                    return false;
+                }
+            }
+        });
+    }
+
     Action autonomousWait(final int millis) {
         return new Action(new Action.Execute() {
             int targetTime = 0;
@@ -534,6 +687,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
+                isAutoMotors = true;
                 leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
                 rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
                 rightDrive.setTargetPosition(rightDrive.getCurrentPosition() + (int) (tickPerCentimeter * centimeters));
@@ -546,29 +700,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             public boolean onLoop() {
                 if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
                     resetRobot();
-                    return true;
-                }
-                return false;
-            }
-        });
-    }
-
-    @Deprecated
-    Action autonomousDriveToGyro(final float angle) {
-        return new Action(new Action.Execute() {
-            int startPosition;
-
-            @Override
-            public void onSetup() {
-                startPosition = leftDrive.getCurrentPosition();
-                leftDrive.setPower(0.5);
-                rightDrive.setPower(0.5);
-            }
-
-            @Override
-            public boolean onLoop() {
-                if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
-                    resetRobot();
+                    isAutoMotors = false;
                     return true;
                 }
                 return false;
@@ -594,7 +726,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
 
     void autoTurn(final int direction, final int degree) {
         prepForAuto();
-        actions.add(autonomousTurnAtPlace(direction, degree,1));
+        actions.add(autonomousTurnAtPlace(direction, degree, 1));
         actions.add(autonomousDone());
     }
 
@@ -606,16 +738,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
 
     void autoDrive(final int centimeters) {
         prepForAuto();
-        actions.add(autonomousDrive(centimeters,1));
-        actions.add(autonomousDone());
-    }
-
-    void autoReorientForCube(int direction) {
-        prepForAuto();
-        actions.add(autonomousDrive(-20,1));
-        actions.add(autonomousTurnAtPlace(direction, 85,1));
-        actions.add(autonomousTurn(-direction, 45,1));
-        actions.add(autonomousTurnAtPlace(-direction, 30,1));
+        actions.add(autonomousDrive(centimeters, 1));
         actions.add(autonomousDone());
     }
 
@@ -659,17 +782,6 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         showStats();
     }
 
-    void showTeam() {
-        if (TEAM == RED_TEAM) {
-            telemetry.addData("Team:", "Red");
-        } else {
-            telemetry.addData("Team:", "Blue");
-        }
-    }
-
-    void showRobotLocation() {
-    }
-
     void showStats() {
         telemetry.addData("Actions:", actions.size());
         if (isClawOpen()) {
@@ -686,19 +798,13 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         //        telemetry.addData("Motor", leftDrive.getPower() + " " + rightDrive.getPower());
     }
 
-    void showGuide() {
-        permanent_messages.add("Robot Configuration:");
-        permanent_messages.add("Press 'Y' To Change Team Color");
-        permanent_messages.add("Press 'A' To Switch Robot Starting Location.");
-    }
-
     void clearMessages() {
         permanent_messages.clear();
     }
 
     void handleGamepad1() {
         double turn = getTurnPower();
-        if (actions.size() == 0) {
+        if (!isAutoMotors) {
             if (!rightDrive.isBusy() && !leftDrive.isBusy()) {
                 if (turn != 0) {
                     if (turn < 0) {
@@ -712,13 +818,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 }
             }
         }
-        if (gamepad1.b) {
-            //            autoDrive(100);
-            buttonSleep();
-        } else if (gamepad1.y) {
-            fullAuto();
-            buttonSleep();
-        } else if (gamepad1.left_bumper) {
+        if (gamepad1.left_bumper) {
             autoTurn(LEFT, 45);
             buttonSleep();
         } else if (gamepad1.right_bumper) {
@@ -740,7 +840,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     }
 
     void handleGamepad2() {
-        if (actions.size() == 0) {
+        if (!isAutoParallel) {
             if (!arm.isBusy()) {
                 armMove(getArmSpeed());
             }
@@ -754,16 +854,6 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             buttonSleep();
         } else if (gamepad2.right_bumper) {
             clawClose();
-            buttonSleep();
-        } else if (gamepad2.a) {
-            if (isJulinatorDown()) {
-                jullinatorUp();
-            } else {
-                jullinatorDown();
-            }
-            buttonSleep();
-        } else if (gamepad2.b) {
-            telemetry.addData("Illegal Action", "Sys Controller Pressed 'B'");
             buttonSleep();
         } else if (gamepad2.y) {
             collapseClaw();
@@ -781,14 +871,6 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         if (gamepad1.x || gamepad2.x) {
             emergencyStop();
             buttonSleep();
-        }
-    }
-
-    void changeTeam() {
-        if (TEAM == BLUE_TEAM) {
-            TEAM = RED_TEAM;
-        } else if (TEAM == RED_TEAM) {
-            TEAM = BLUE_TEAM;
         }
     }
 
@@ -819,16 +901,6 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         resetRobot();
         actions.clear();
         telemetry.addLine("Emergency Stop!");
-    }
-
-    void calibrateGyro() {
-        BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
-        parameters.angleUnit = BNO055IMU.AngleUnit.DEGREES;
-        parameters.accelUnit = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
-        parameters.calibrationDataFile = "BNO055IMUCalibration.json"; // see the calibration sample opmode
-        parameters.loggingEnabled = true;
-        parameters.loggingTag = "Gyro";
-        gyro.initialize(parameters);
     }
 
     void clawOpen() {
@@ -894,7 +966,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         } else if (gamepad1.dpad_up && gamepad1.dpad_left) {
             LOCATION = GLYPHBOX_NORTHWEST;
         }
-        telemetry.addData("Location: ",getLocationString());
+        telemetry.addData("Location: ", getLocationString());
     }
 
     void checkTeamMode() {
@@ -903,7 +975,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         } else if (!gamepad1.a && gamepad1.b) {
             TEAM = RED_TEAM;
         }
-        telemetry.addData("Team Color: ",getTeamString());
+        telemetry.addData("Team Color: ", getTeamString());
     }
 
     void fullAuto() {
@@ -965,8 +1037,9 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         armInitial = arm.getCurrentPosition();
         armFinal = armInitial + tickPerArmCentimeter * maxArmCentimeter;
     }
-    void initializeColorSensor(){
-        color=hardwareMap.get(ColorSensor.class,"color");
+
+    void initializeColorSensor() {
+        color = hardwareMap.get(ColorSensor.class, "color");
         color.enableLed(false);
     }
 }
