@@ -1,2 +1,6 @@
-##Here lays the code for our robot.
-You might find it messy.
+##JULIE v2.0
+###Our Code For JULIE the Robot
+
+####Play Field Layout:
+#####Northwest+Northeast = Blue
+#####Southwest+Southeast = Red
