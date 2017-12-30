@@ -1,37 +1,10 @@
-/* Copyright (c) 2017 FIRST. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted (subject to the limitations in the disclaimer below) provided that
- * the following conditions are met:
- *
- * Redistributions of source code must retain the above copyright notice, this list
- * of conditions and the following disclaimer.
- *
- * Redistributions in binary form must reproduce the above copyright notice, this
- * list of conditions and the following disclaimer in the documentation and/or
- * other materials provided with the distribution.
- *
- * Neither the name of FIRST nor the names of its contributors may be used to endorse or
- * promote products derived from this software without specific prior written permission.
- *
- * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY THIS
- * LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
 package org.firstinspires.ftc.teamcode;
 
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
+import com.qualcomm.hardware.bosch.BNO055IMU;
+import com.qualcomm.hardware.bosch.JustLoggingAccelerationIntegrator;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -53,110 +26,14 @@ import static org.firstinspires.ftc.teamcode.Stats.LEFT;
 import static org.firstinspires.ftc.teamcode.Stats.RED_TEAM;
 import static org.firstinspires.ftc.teamcode.Stats.RIGHT;
 
-public class Stats {
-    static final int MULTI = 1;
-    static final int LINEBYLINE = 2;
-    static final int RIGHT = 1;
-    static final int LEFT = -1;
-    static final int BLUE_TEAM = 1;
-    static final int RED_TEAM = 2;
-    static final int westRightForwardCm = 30 + 39;
-    static final int westLeftForwardCm = westRightForwardCm + 19 + 19;
-    static final int westCenterForwardCm = westRightForwardCm + 19;
-    static final int eastLeftCm = 54;
-    static final int eastCenterCm = 36;
-    static final int eastRightCm = 19;
-    static final int motorTickPerRevolution = (1440 / 86) * 100;//1674.41
-    static final int armMotorTickPerRevolution = (1440);
-    static final double PI = 3.14;
-    static final double wheelDiameter = 2 * 5.1 * PI;
-    static final double distanceBetween = 39;
-    static final double maxArmCentimeter = 65.3;
-    static final double placeSpinDiameter = 2 * distanceBetween * PI;
-    static final double placeOutSpinDiameter = distanceBetween * PI;//122.46
-    static final double tickPerCentimeter = (motorTickPerRevolution) / (wheelDiameter);//52.27
-    static final double armToGear = 3 / 6.5;
-    static final double armLength = 28.8;
-    static final double armCmPerMotorRevolution = (2 * armLength * PI);
-    static final double tickPerArmCentimeter = (armMotorTickPerRevolution / armToGear) / armCmPerMotorRevolution;
-    static final double tickPerDegree = (((placeSpinDiameter * tickPerCentimeter) / 360) / 231) * 260;
-    static final double tickPerDegreeAtPlace = (((placeOutSpinDiameter * tickPerCentimeter) / 360) / 231) * 245;//18.69023569
-    static final double fullDown = 0.54;
-    static final double readDown = 0.48;
-    static final double julZero = 0.02;
-    static final double clawOpen = 0.3;
-    static final double clawClose = 0.55;
-    static final int armUp = 60;
-
-    static class Vuforia {
-        static final String key = "AcJU0s7/////AAAAmYAF+R25rU5elxvWG+jzOfkipjv/EqlAWEJ12K0WFESUlxRj3trJYggUrl1cGvVLLpEbh56nvKa7zL9mYbG3P6lcCeUUNtXMKwg7QzPfJBG8HRas8zkQPFahOEgvii83GQCKLihiRGi2UFmlK3RkzVi6NU2d/9v8q1lrFfAT2lJQsqyThtcaYKHbDt9DFQzSTwcQLz7Pblr1cM57P7H3T/XovWdMOZBKeXzT8G00c5J4rRtWmq+Pvk83YFxfAiA22sFPepjkt2eke/QeMiCFE6hwRoq/WlGFsKDhMnGDAy16UlexgrjEQn85vclQxkJh6/Rd7IJ6FF0aCp8ewg29ZV14bWxdr1GEyWwh1BJ50YFQ";
-    }
-}
-
-class Action {
-    @Deprecated
-    static class TimeableAction {
-        Execute e;
-        int time;
-
-        TimeableAction(int time, @Nullable Execute execute) {
-            this.time = time;
-            this.e = execute;
-        }
-
-        Execute getExecutable() {
-            return e;
-        }
-
-        int getTime() {
-            return time;
-        }
-
-        interface Execute {
-            void onExecute();
-        }
-    }
-
-    Execute e;
-
-    Action(@NonNull Execute execute) {
-        e = execute;
-    }
-
-    private boolean alive = true;
-    private boolean setup = false;
-
-    boolean isAlive() {
-        return alive;
-    }
-
-    boolean isSetup() {
-        return setup;
-    }
-
-    void setup() {
-        e.onSetup();
-        setup = true;
-    }
-
-    void loop() {
-        alive = !e.onLoop();
-    }
-
-    interface Execute {
-        void onSetup();
-
-        boolean onLoop();
-    }
-}
-
-class Robot {
+public class Robot {
     private HardwareMap hardwareMap;
     private ElapsedTime runtime;
     private Telemetry telemetry;
     private DcMotor leftDrive, rightDrive, arm;
     private Servo clawRight, clawLeft, julie;
     private ColorSensor julieSensor;
+    private BNO055IMU gyro;
     private ArrayList<Action> actions = new ArrayList<>();
     private ArrayList<String> permanent_messages = new ArrayList<>();
     private int MODE = Stats.MULTI;
@@ -250,6 +127,7 @@ class Robot {
         } else {
             telemetry.addData("Mode", "ActionByAction");
         }
+        telemetry.addData("Gyro:", gyro.getAngularOrientation().firstAngle);
         //        telemetry.addData("Seconds", (int) runtime.seconds());
         //        telemetry.addData("Motor", leftDrive.getPower() + " " + rightDrive.getPower());
     }
@@ -279,6 +157,7 @@ class Robot {
         initServos();
         initMotors();
         initColor();
+        initGyro();
     }
 
     private void collapse() {
@@ -340,6 +219,18 @@ class Robot {
     private void initColor() {
         julieSensor = hardwareMap.get(ColorSensor.class, "color");
         julieSensor.enableLed(false);
+    }
+
+    private void initGyro() {
+        BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
+        parameters.angleUnit = BNO055IMU.AngleUnit.DEGREES;
+        parameters.accelUnit = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
+        parameters.calibrationDataFile = "BNO055IMUCalibration.json"; // see the calibration sample opmode
+        parameters.loggingEnabled = true;
+        parameters.loggingTag = "IMU";
+        parameters.accelerationIntegrationAlgorithm = new JustLoggingAccelerationIntegrator();
+        gyro = hardwareMap.get(BNO055IMU.class, "gyro");
+        gyro.initialize(parameters);
     }
 
     public void julieUp() {
@@ -697,6 +588,29 @@ class Robot {
         });
     }
 
+    public Action autonomousDriveToGyro(final float angle, final double power) {
+        return new Action(new Action.Execute() {
+            @Override
+            public void onSetup() {
+                leftDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+                rightDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            }
+
+            @Override
+            public boolean onLoop() {
+                if(gyro.getAngularOrientation().firstAngle<angle){
+                    drive(power);
+                }else if(gyro.getAngularOrientation().firstAngle>angle){
+                    drive(-power);
+                }else if(gyro.getAngularOrientation().firstAngle==angle){
+                    drive(0);
+                    return true;
+                }
+                return false;
+            }
+        });
+    }
+
     public Action autonomousDone() {
         return new Action(new Action.Execute() {
             @Override
@@ -733,5 +647,101 @@ class Robot {
         public Action[] getR() {
             return R;
         }
+    }
+}
+
+class Stats {
+    static final int MULTI = 1;
+    static final int LINEBYLINE = 2;
+    static final int RIGHT = 1;
+    static final int LEFT = -1;
+    static final int BLUE_TEAM = 1;
+    static final int RED_TEAM = 2;
+    static final int westRightForwardCm = 30 + 39;
+    static final int westLeftForwardCm = westRightForwardCm + 19 + 19;
+    static final int westCenterForwardCm = westRightForwardCm + 19;
+    static final int eastLeftCm = 54;
+    static final int eastCenterCm = 36;
+    static final int eastRightCm = 19;
+    static final int motorTickPerRevolution = (1440 / 86) * 100;//1674.41
+    static final int armMotorTickPerRevolution = (1440);
+    static final double PI = 3.14;
+    static final double wheelDiameter = 2 * 5.1 * PI;
+    static final double distanceBetween = 39;
+    static final double placeSpinDiameter = 2 * distanceBetween * PI;
+    static final double placeOutSpinDiameter = distanceBetween * PI;//122.46
+    static final double tickPerCentimeter = (motorTickPerRevolution) / (wheelDiameter);//52.27
+    static final double armToGear = 3 / 6.5;
+    static final double armLength = 28.8;
+    static final double armCmPerMotorRevolution = (2 * armLength * PI);
+    static final double tickPerArmCentimeter = (armMotorTickPerRevolution / armToGear) / armCmPerMotorRevolution;
+    static final double tickPerDegree = (((placeSpinDiameter * tickPerCentimeter) / 360) / 231) * 260;
+    static final double tickPerDegreeAtPlace = (((placeOutSpinDiameter * tickPerCentimeter) / 360) / 231) * 245;//18.69023569
+    static final double fullDown = 0.54;
+    static final double readDown = 0.48;
+    static final double julZero = 0.02;
+    static final double clawOpen = 0.3;
+    static final double clawClose = 0.55;
+    static final int armUp = 60;
+
+    static class Vuforia {
+        static final String key = "AcJU0s7/////AAAAmYAF+R25rU5elxvWG+jzOfkipjv/EqlAWEJ12K0WFESUlxRj3trJYggUrl1cGvVLLpEbh56nvKa7zL9mYbG3P6lcCeUUNtXMKwg7QzPfJBG8HRas8zkQPFahOEgvii83GQCKLihiRGi2UFmlK3RkzVi6NU2d/9v8q1lrFfAT2lJQsqyThtcaYKHbDt9DFQzSTwcQLz7Pblr1cM57P7H3T/XovWdMOZBKeXzT8G00c5J4rRtWmq+Pvk83YFxfAiA22sFPepjkt2eke/QeMiCFE6hwRoq/WlGFsKDhMnGDAy16UlexgrjEQn85vclQxkJh6/Rd7IJ6FF0aCp8ewg29ZV14bWxdr1GEyWwh1BJ50YFQ";
+    }
+}
+
+class Action {
+    @Deprecated
+    static class TimeableAction {
+        Execute e;
+        int time;
+
+        TimeableAction(int time, @Nullable Execute execute) {
+            this.time = time;
+            this.e = execute;
+        }
+
+        Execute getExecutable() {
+            return e;
+        }
+
+        int getTime() {
+            return time;
+        }
+
+        interface Execute {
+            void onExecute();
+        }
+    }
+
+    Execute e;
+
+    Action(@NonNull Execute execute) {
+        e = execute;
+    }
+
+    private boolean alive = true;
+    private boolean setup = false;
+
+    boolean isAlive() {
+        return alive;
+    }
+
+    boolean isSetup() {
+        return setup;
+    }
+
+    void setup() {
+        e.onSetup();
+        setup = true;
+    }
+
+    void loop() {
+        alive = !e.onLoop();
+    }
+
+    interface Execute {
+        void onSetup();
+
+        boolean onLoop();
     }
 }
