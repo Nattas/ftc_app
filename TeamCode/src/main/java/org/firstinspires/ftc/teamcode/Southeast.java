@@ -35,15 +35,11 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 @Autonomous(name = "Southeast")
 public class Southeast extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private ElapsedTime runtime = new ElapsedTime();
-    private Robot r = new Robot(hardwareMap, runtime, telemetry);
-    private Robot.Scenario s = new Robot.Scenario(
-            new Action[]{
-            }, new Action[]{
-    }, new Action[]{
-    });
+    private Robot r;
 
     @Override
     public void init() {
+        r = new Robot(hardwareMap, runtime, telemetry);
         r.init();
         fullAuto();
     }
@@ -78,9 +74,18 @@ public class Southeast extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 r.autonomousWait(500),
                 r.autonomousJulieColorScan(Stats.RED_TEAM),
                 r.autonomousWait(500),
-                r.autonomousVuforia(s),
+                r.autonomousVuforia(getScenario()),
                 r.autonomousDone()
         };
+    }
+
+    Robot.Scenario getScenario() {
+        return new Robot.Scenario(
+                new Action[]{
+                }, new Action[]{
+        }, new Action[]{
+                r.autonomousDrive(Stats.westR, 0.5)
+        });
     }
 
     void checkEmergency() {

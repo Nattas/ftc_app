@@ -26,7 +26,7 @@ import static org.firstinspires.ftc.teamcode.Stats.LEFT;
 import static org.firstinspires.ftc.teamcode.Stats.RED_TEAM;
 import static org.firstinspires.ftc.teamcode.Stats.RIGHT;
 
-public class Robot {
+public class Robot{
     private HardwareMap hardwareMap;
     private ElapsedTime runtime;
     private Telemetry telemetry;
@@ -37,6 +37,13 @@ public class Robot {
     private ArrayList<Action> actions = new ArrayList<>();
     private ArrayList<String> permanent_messages = new ArrayList<>();
     private int MODE = Stats.MULTI;
+    //Vuforia
+    private boolean vuforiaStatus = false;
+    private OpenGLMatrix lastLocation = null;
+    private VuforiaLocalizer vuforia = null;
+    private RelicRecoveryVuMark mark = null;
+    private VuforiaTrackable relicTemplate = null;
+    private VuforiaTrackables relicTrackables = null;
 
     public Robot(HardwareMap hardwareMap, ElapsedTime runtime, Telemetry telemetry) {
         this.hardwareMap = hardwareMap;
@@ -44,7 +51,7 @@ public class Robot {
         this.telemetry = telemetry;
     }
 
-    public void init() {
+    public void init(){
         hardwareInit();
         collapse();
     }
@@ -67,12 +74,15 @@ public class Robot {
     }
 
     public void addAction(Action a) {
+        actions.add(a);
     }
 
     public void addActions(Action[] a) {
+        actions.addAll(Arrays.asList(a));
     }
 
     public void addActions(ArrayList<Action> a) {
+        actions.addAll(a);
     }
 
     public void prepareForAutonomous() {
@@ -133,7 +143,6 @@ public class Robot {
     }
 
     private void resetRobot() {
-        //        MODE=MULTI;
         leftDrive.setPower(0);
         rightDrive.setPower(0);
         leftDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -143,7 +152,6 @@ public class Robot {
 
     private void resetArm() {
         arm.setPower(0);
-        //        arm.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         arm.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
     }
 
@@ -161,13 +169,8 @@ public class Robot {
     }
 
     private void collapse() {
-        collapseClaw();
+        clawClose();
         collapseJulie();
-    }
-
-    private void collapseClaw() {
-        clawLeft.setPosition(0.6);
-        clawRight.setPosition(0.6);
     }
 
     private void collapseJulie() {
@@ -233,6 +236,18 @@ public class Robot {
         gyro.initialize(parameters);
     }
 
+    private void initVuforia() {
+        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+        VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters(cameraMonitorViewId);
+        parameters.vuforiaLicenseKey = Stats.Vuforia.key;
+        parameters.cameraDirection = VuforiaLocalizer.CameraDirection.BACK;
+        this.vuforia = ClassFactory.createVuforiaLocalizer(parameters);
+        relicTrackables = this.vuforia.loadTrackablesFromAsset("RelicVuMark");
+        relicTemplate = relicTrackables.get(0);
+        relicTrackables.activate();
+        vuforiaStatus = true;
+    }
+
     public void julieUp() {
         julie.setPosition(Stats.julZero);
     }
@@ -287,7 +302,7 @@ public class Robot {
         return (julie.getPosition() > Stats.julZero + 0.05);
     }
 
-    public Action autonomousCircle(final int direction, final int degree, final double power) {
+    public Action autonomousCircle(final int direction, final double degree, final double power) {
         return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
@@ -310,7 +325,7 @@ public class Robot {
         });
     }
 
-    public Action autonomousTurn(final int direction, final int degree, final double power) {
+    public Action autonomousTurn(final int direction, final double degree, final double power) {
         return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
@@ -336,12 +351,12 @@ public class Robot {
         });
     }
 
-    public Action autonomousArmMove(final int cm, final double power) {
+    public Action autonomousArmMove(final double centimeters, final double power) {
         return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
                 arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                arm.setTargetPosition((int) (arm.getCurrentPosition() + (Stats.tickPerArmCentimeter * cm)));
+                arm.setTargetPosition((int) (arm.getCurrentPosition() + (Stats.tickPerArmCentimeter * centimeters)));
                 arm.setPower(power);
             }
 
@@ -454,23 +469,7 @@ public class Robot {
     public Action autonomousVuforia(final Scenario s) {
         return new Action(new Action.Execute() {
             ArrayList<Action> miniaction = new ArrayList<>();
-            OpenGLMatrix lastLocation = null;
-            VuforiaLocalizer vuforia;
-            RelicRecoveryVuMark mark;
-            VuforiaTrackable relicTemplate;
-            VuforiaTrackables relicTrackables;
             boolean foundMark = false;
-
-            private void initVuforia() {
-                int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
-                VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters(cameraMonitorViewId);
-                parameters.vuforiaLicenseKey = Stats.Vuforia.key;
-                parameters.cameraDirection = VuforiaLocalizer.CameraDirection.BACK;
-                this.vuforia = ClassFactory.createVuforiaLocalizer(parameters);
-                relicTrackables = this.vuforia.loadTrackablesFromAsset("RelicVuMark");
-                relicTemplate = relicTrackables.get(0);
-                relicTrackables.activate();
-            }
 
             private void searchVuforia() {
                 RelicRecoveryVuMark vuMark = RelicRecoveryVuMark.from(relicTemplate);
@@ -493,7 +492,8 @@ public class Robot {
 
             @Override
             public void onSetup() {
-                initVuforia();
+                if (!vuforiaStatus)
+                    initVuforia();
             }
 
             @Override
@@ -515,6 +515,21 @@ public class Robot {
                     searchVuforia();
                     return false;
                 }
+            }
+        });
+    }
+
+    public Action autonomousVuforiaInit() {
+        return new Action(new Action.Execute() {
+            @Override
+            public void onSetup() {
+                if (!vuforiaStatus)
+                    initVuforia();
+            }
+
+            @Override
+            public boolean onLoop() {
+                return true;
             }
         });
     }
@@ -565,7 +580,7 @@ public class Robot {
         });
     }
 
-    public Action autonomousDrive(final int centimeters, final double power) {
+    public Action autonomousDrive(final double centimeters, final double power) {
         return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
@@ -598,11 +613,11 @@ public class Robot {
 
             @Override
             public boolean onLoop() {
-                if(gyro.getAngularOrientation().firstAngle<angle){
+                if (gyro.getAngularOrientation().firstAngle < angle) {
                     drive(power);
-                }else if(gyro.getAngularOrientation().firstAngle>angle){
+                } else if (gyro.getAngularOrientation().firstAngle > angle) {
                     drive(-power);
-                }else if(gyro.getAngularOrientation().firstAngle==angle){
+                } else if (gyro.getAngularOrientation().firstAngle == angle) {
                     drive(0);
                     return true;
                 }
@@ -657,9 +672,10 @@ class Stats {
     static final int LEFT = -1;
     static final int BLUE_TEAM = 1;
     static final int RED_TEAM = 2;
-    static final int westRightForwardCm = 30 + 39;
-    static final int westLeftForwardCm = westRightForwardCm + 19 + 19;
-    static final int westCenterForwardCm = westRightForwardCm + 19;
+    static final double ofthebalance = 30;
+    static final double westR = ofthebalance + 44;
+    static final double westL = ofthebalance + 19 + 19;
+    static final double westCenterForwardCm = ofthebalance + 19;
     static final int eastLeftCm = 54;
     static final int eastCenterCm = 36;
     static final int eastRightCm = 19;

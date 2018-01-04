@@ -35,15 +35,11 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 @Autonomous(name = "Southwest")
 public class Southwest extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private ElapsedTime runtime = new ElapsedTime();
-    private Robot r = new Robot(hardwareMap, runtime, telemetry);
-    private Robot.Scenario s = new Robot.Scenario(
-            new Action[]{
-            }, new Action[]{
-    }, new Action[]{
-    });
+    private Robot r;
 
     @Override
     public void init() {
+        r = new Robot(hardwareMap, runtime, telemetry);
         r.init();
         fullAuto();
     }
@@ -72,15 +68,27 @@ public class Southwest extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
 
     Action[] getAutonomous() {
         return new Action[]{
+                r.autonomousVuforiaInit(),
                 r.autonomousClawClose(),
                 r.autonomousArmMove(Stats.armUp, 0.5),
                 r.autonomousJulieScanPosition(),
                 r.autonomousWait(500),
                 r.autonomousJulieColorScan(Stats.RED_TEAM),
                 r.autonomousWait(500),
-                r.autonomousVuforia(s),
+                r.autonomousVuforia(getScenario()),
                 r.autonomousDone()
         };
+    }
+
+    Robot.Scenario getScenario() {
+        return new Robot.Scenario(
+                new Action[]{
+                }, new Action[]{
+        }, new Action[]{
+                r.autonomousCircle(Stats.LEFT, 180, 0.3),
+                r.autonomousDrive(Stats.westR, 0.5),
+                r.autonomousTurn(Stats.RIGHT,90,0.3),
+        });
     }
 
     void checkEmergency() {
