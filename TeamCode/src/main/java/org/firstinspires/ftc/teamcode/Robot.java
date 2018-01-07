@@ -137,7 +137,9 @@ public class Robot{
         } else {
             telemetry.addData("Mode", "ActionByAction");
         }
-        telemetry.addData("Gyro:", gyro.getAngularOrientation().firstAngle);
+        telemetry.addData("Gyro 1:", gyro.getAngularOrientation().firstAngle);
+        telemetry.addData("Gyro 2:", gyro.getAngularOrientation().secondAngle);
+        telemetry.addData("Gyro 3:", gyro.getAngularOrientation().thirdAngle);
         //        telemetry.addData("Seconds", (int) runtime.seconds());
         //        telemetry.addData("Motor", leftDrive.getPower() + " " + rightDrive.getPower());
     }
@@ -321,6 +323,38 @@ public class Robot{
                     return true;
                 }
                 return false;
+            }
+        });
+    }
+
+    public Action autonomousCircleByGyro(final int direction, final double degree, final double power){
+        return new Action(new Action.Execute() {
+            double gyroBegin,gyroToGo;
+            @Override
+            public void onSetup() {
+                gyroBegin=gyro.getAngularOrientation().firstAngle;
+                gyroToGo=gyroBegin+(degree*direction);
+                glue("Gyro To Go:"+gyroToGo);
+                glue("Gyro Beginning:"+gyroBegin);
+            }
+
+            @Override
+            public boolean onLoop() {
+                double of=0;
+                double p=gyro.getAngularOrientation().firstAngle;
+                if(p>(gyroToGo)){
+                    of=1/4;
+                }else{
+                    of=1-(p-gyroBegin/gyroToGo-gyroBegin);
+                }
+                if(gyroToGo>gyro.getAngularOrientation().firstAngle){
+                    rightDrive.setPower(power*of);
+                    leftDrive.setPower(-power*of);
+                }else if(gyroToGo<gyro.getAngularOrientation().firstAngle){
+                    rightDrive.setPower(-power*of);
+                    leftDrive.setPower(power*of);
+                }
+                return (gyro.getAngularOrientation().firstAngle==gyroToGo);
             }
         });
     }
@@ -613,11 +647,12 @@ public class Robot{
 
             @Override
             public boolean onLoop() {
-                if (gyro.getAngularOrientation().firstAngle < angle) {
+                double angletogo=gyro.getAngularOrientation().firstAngle;
+                if (angletogo < angle) {
                     drive(power);
-                } else if (gyro.getAngularOrientation().firstAngle > angle) {
+                } else if (angletogo > angle) {
                     drive(-power);
-                } else if (gyro.getAngularOrientation().firstAngle == angle) {
+                } else if (angletogo == angle) {
                     drive(0);
                     return true;
                 }
@@ -661,6 +696,12 @@ public class Robot{
 
         public Action[] getR() {
             return R;
+        }
+    }
+
+    static class Formula{
+        interface Calculated{
+            double calculate(double current,double max,double callibrationOffset);
         }
     }
 }

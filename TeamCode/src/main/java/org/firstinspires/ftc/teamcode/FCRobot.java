@@ -35,10 +35,11 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 @TeleOp(name = "FullControl", group = "TeleOp")
 public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private ElapsedTime runtime = new ElapsedTime();
-    Robot r = new Robot(hardwareMap, runtime, telemetry);
+    private Robot r;
 
     @Override
     public void init() {
+        r= new Robot(hardwareMap, runtime, telemetry);
         r.init();
     }
 
