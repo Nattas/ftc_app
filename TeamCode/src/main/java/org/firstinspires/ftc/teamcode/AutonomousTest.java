@@ -29,18 +29,19 @@
 
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@TeleOp(name = "FullControl", group = "TeleOp")
-public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
+@Autonomous(name = "AutonomousTest")
+public class AutonomousTest extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private ElapsedTime runtime = new ElapsedTime();
     private Robot r;
 
     @Override
     public void init() {
-        r= new Robot(hardwareMap, runtime, telemetry);
+        r = new Robot(hardwareMap, runtime, telemetry);
         r.init();
+        fullAuto();
     }
 
     @Override
@@ -51,14 +52,12 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     public void start() {
         runtime.reset();
         r.peel();
-        r.clawOpen();
+        r.clawClose();
     }
 
     @Override
     public void loop() {
         checkEmergency();
-        handleGamepad1();
-        handleGamepad2();
         r.loop();
     }
 
@@ -67,70 +66,21 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         r.clawClose();
     }
 
-    double getDrivePower() {
-        double power = 0;
-        if (gamepad1.right_trigger != 0) {
-            power += gamepad1.right_trigger;
-        }
-        if (gamepad1.left_trigger != 0) {
-            power -= gamepad1.left_trigger;
-        }
-        if (gamepad1.a) {
-            return power / 4;
-        } else {
-            return power;
-        }
+    Action[] getAutonomous() {
+        return new Action[]{
+               r.autonomousCircleByGyro(Stats.RIGHT,90,0.3)
+        };
     }
 
-    double getTurnPower() {
-        double power = gamepad1.left_stick_x;
-        if (gamepad1.a) {
-            return power / 8;
-        } else {
-            return power / 2;
-        }
-    }
-
-    double getArmSpeed() {
-        double speed = 0;
-        if (gamepad2.right_trigger != 0) {
-            speed += gamepad2.right_trigger;
-        }
-        if (gamepad2.left_trigger != 0) {
-            speed -= gamepad2.left_trigger / 4;
-        }
-        return speed * 0.7;
-    }
-
-    void handleGamepad1() {
-        double turn = getTurnPower();
-        if (!r.isRobotBusy()) {
-            if (turn != 0) {
-                r.turn(getDrivePower(), turn);
-            } else {
-                r.drive(getDrivePower());
-            }
-        }
-    }
-
-    void handleGamepad2() {
-        if (!r.isRobotBusy()) {
-            r.arm(getArmSpeed());
-        }
-        //        if(gamepad2.left_stick_x!=0){
-        //            julinator.setPosition(toServo(-gamepad2.left_stick_x));
-        //            buttonSleep();
-        //        }
-        if (gamepad2.left_bumper) {
-            r.clawOpen();
-            buttonSleep();
-        } else if (gamepad2.right_bumper) {
-            r.clawClose();
-            buttonSleep();
-        } else if (gamepad2.y) {
-            r.julieUp();
-            buttonSleep();
-        }
+    Robot.Scenario getScenario() {
+        return new Robot.Scenario(
+                new Action[]{
+                }, new Action[]{
+        }, new Action[]{
+                r.autonomousCircle(Stats.LEFT, 180, 0.3),
+                r.autonomousDrive(Stats.westR, 0.5),
+                r.autonomousTurn(Stats.RIGHT,90,0.3),
+        });
     }
 
     void checkEmergency() {
@@ -146,5 +96,10 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    void fullAuto() {
+        r.prepareForAutonomous();
+        r.addActions(getAutonomous());
     }
 }
