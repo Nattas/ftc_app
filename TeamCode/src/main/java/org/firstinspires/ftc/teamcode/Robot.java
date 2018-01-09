@@ -26,7 +26,7 @@ import static org.firstinspires.ftc.teamcode.Stats.LEFT;
 import static org.firstinspires.ftc.teamcode.Stats.RED_TEAM;
 import static org.firstinspires.ftc.teamcode.Stats.RIGHT;
 
-public class Robot{
+public class Robot {
     private HardwareMap hardwareMap;
     private ElapsedTime runtime;
     private Telemetry telemetry;
@@ -51,7 +51,7 @@ public class Robot{
         this.telemetry = telemetry;
     }
 
-    public void init(){
+    public void init() {
         hardwareInit();
         collapse();
     }
@@ -237,6 +237,7 @@ public class Robot{
         gyro = hardwareMap.get(BNO055IMU.class, "gyro");
         gyro.initialize(parameters);
     }
+
     private void initVuforia() {
         int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
         VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters(cameraMonitorViewId);
@@ -303,7 +304,7 @@ public class Robot{
         return (julie.getPosition() > Stats.julZero + 0.05);
     }
 
-    public double getTurnGyro(){
+    public double getTurnGyro() {
         return gyro.getAngularOrientation().firstAngle;
     }
 
@@ -331,37 +332,45 @@ public class Robot{
         });
     }
 
-    public Action autonomousCircle(final int direction, final double degree, final double power){
+    public Action autonomousCircle(final int direction, final double degree, final double power) {
         return new Action(new Action.Execute() {
-            double gyroBegin,gyroToGo;
+            double gyroBegin, gyroToGo;
+            Formula noMiss = new Formula() {
+
+                @Override
+                public double calculate(double power, double progress) {
+                    if (progress < 0.5) {
+                        return power * (progress / 0.5);
+                    } else {
+                        return power * (1 - progress);
+                    }
+                }
+            };
+
             @Override
             public void onSetup() {
-                gyroBegin=gyro.getAngularOrientation().firstAngle;
-                gyroToGo=gyroBegin+(degree*direction);
-                glue("Gyro To Go:"+gyroToGo);
-                glue("Gyro Beginning:"+gyroBegin);
+                gyroBegin = getTurnGyro();
+                gyroToGo = gyroBegin + (degree * direction);
             }
 
             @Override
             public boolean onLoop() {
-                double of=0;
-                double p=gyro.getAngularOrientation().firstAngle;
-                if(p>(gyroToGo)){
-                    of=1/4;
-                }else{
-                    of=1-(p-gyroBegin/gyroToGo-gyroBegin);
+                double p = getTurnGyro();
+                double of = (1 - ((p - gyroBegin) / (gyroToGo - gyroBegin)));
+                of = noMiss.calculate(power, (p - gyroBegin) / (gyroToGo - gyroBegin));
+                of += 0.05;
+                if (gyroToGo > p) {
+                    rightDrive.setPower(power * of);
+                    leftDrive.setPower(-power * of);
+                } else if (gyroToGo < p) {
+                    rightDrive.setPower(-power * of);
+                    leftDrive.setPower(power * of);
                 }
-                if(gyroToGo>gyro.getAngularOrientation().firstAngle){
-                    rightDrive.setPower(power*of);
-                    leftDrive.setPower(-power*of);
-                }else if(gyroToGo<gyro.getAngularOrientation().firstAngle){
-                    rightDrive.setPower(-power*of);
-                    leftDrive.setPower(power*of);
-                }
-                return (gyro.getAngularOrientation().firstAngle==gyroToGo);
+                return (p == gyroToGo);
             }
         });
     }
+
     @Deprecated
     public Action autonomousTurn(final int direction, final double degree, final double power) {
         return new Action(new Action.Execute() {
@@ -640,6 +649,7 @@ public class Robot{
             }
         });
     }
+
     public Action autonomousDriveToGyro(final float angle, final double power) {
         return new Action(new Action.Execute() {
             @Override
@@ -650,7 +660,7 @@ public class Robot{
 
             @Override
             public boolean onLoop() {
-                double angletogo=gyro.getAngularOrientation().firstAngle;
+                double angletogo = gyro.getAngularOrientation().firstAngle;
                 if (angletogo < angle) {
                     drive(power);
                 } else if (angletogo > angle) {
@@ -700,6 +710,15 @@ public class Robot{
         public Action[] getR() {
             return R;
         }
+    }
+
+    static class Field {
+        static final double field = 365.76;
+        static final double balacing = 60;
+    }
+
+    interface Formula {
+        double calculate(double power, double progress);
     }
 }
 
