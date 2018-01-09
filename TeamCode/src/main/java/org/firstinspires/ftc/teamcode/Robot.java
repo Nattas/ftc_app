@@ -237,7 +237,6 @@ public class Robot{
         gyro = hardwareMap.get(BNO055IMU.class, "gyro");
         gyro.initialize(parameters);
     }
-
     private void initVuforia() {
         int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
         VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters(cameraMonitorViewId);
@@ -304,7 +303,12 @@ public class Robot{
         return (julie.getPosition() > Stats.julZero + 0.05);
     }
 
-    public Action autonomousCircle(final int direction, final double degree, final double power) {
+    public double getTurnGyro(){
+        return gyro.getAngularOrientation().firstAngle;
+    }
+
+    @Deprecated
+    public Action autonomousCircleByEncoder(final int direction, final double degree, final double power) {
         return new Action(new Action.Execute() {
             @Override
             public void onSetup() {
@@ -327,7 +331,7 @@ public class Robot{
         });
     }
 
-    public Action autonomousCircleByGyro(final int direction, final double degree, final double power){
+    public Action autonomousCircle(final int direction, final double degree, final double power){
         return new Action(new Action.Execute() {
             double gyroBegin,gyroToGo;
             @Override
@@ -358,7 +362,7 @@ public class Robot{
             }
         });
     }
-
+    @Deprecated
     public Action autonomousTurn(final int direction, final double degree, final double power) {
         return new Action(new Action.Execute() {
             @Override
@@ -636,7 +640,6 @@ public class Robot{
             }
         });
     }
-
     public Action autonomousDriveToGyro(final float angle, final double power) {
         return new Action(new Action.Execute() {
             @Override
@@ -696,12 +699,6 @@ public class Robot{
 
         public Action[] getR() {
             return R;
-        }
-    }
-
-    static class Formula{
-        interface Calculated{
-            double calculate(double current,double max,double callibrationOffset);
         }
     }
 }
