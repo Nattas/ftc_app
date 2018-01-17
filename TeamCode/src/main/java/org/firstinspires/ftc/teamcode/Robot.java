@@ -137,11 +137,21 @@ public class Robot {
         } else {
             telemetry.addData("Mode", "ActionByAction");
         }
+        showPower();
         telemetry.addData("Gyro 1:", gyro.getAngularOrientation().firstAngle);
         telemetry.addData("Gyro 2:", gyro.getAngularOrientation().secondAngle);
         telemetry.addData("Gyro 3:", gyro.getAngularOrientation().thirdAngle);
         //        telemetry.addData("Seconds", (int) runtime.seconds());
         //        telemetry.addData("Motor", leftDrive.getPower() + " " + rightDrive.getPower());
+    }
+
+    private void showPower() {
+        if (rightDrive.getPower() == leftDrive.getPower()) {
+            telemetry.addData("Power:", rightDrive.getPower());
+        } else {
+            telemetry.addData("Power-L:", leftDrive.getPower());
+            telemetry.addData("Power-R:", leftDrive.getPower());
+        }
     }
 
     private void resetRobot() {
@@ -214,6 +224,7 @@ public class Robot {
         rightDrive.setDirection(DcMotor.Direction.FORWARD);
     }
 
+    @Deprecated
     private void initArm() {
         arm = hardwareMap.get(DcMotor.class, "arm");
         arm.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -335,15 +346,26 @@ public class Robot {
     public Action autonomousCircle(final int direction, final double degree, final double power) {
         return new Action(new Action.Execute() {
             double gyroBegin, gyroToGo;
+            int times = 0;
             Formula noMiss = new Formula() {
 
                 @Override
                 public double calculate(double power, double progress) {
-                    if (progress < 0.5) {
-                        return power * (progress / 0.5);
+                    double lowPower = 0.085;
+                    double returnPower = 0;
+                    if (progress <= 1) {
+                        returnPower = power * (1 - progress);
                     } else {
-                        return power * (1 - progress);
+                        returnPower = -(power * (progress - 1));
                     }
+                    if (returnPower < direction*power / 10 && progress >= 0.9 && progress <= 1.1) {
+                        if (progress <= 1) {
+                            returnPower = lowPower;
+                        } else {
+                            returnPower = -lowPower;
+                        }
+                    }
+                    return returnPower;
                 }
             };
 
@@ -356,17 +378,28 @@ public class Robot {
             @Override
             public boolean onLoop() {
                 double p = getTurnGyro();
-                double of = (1 - ((p - gyroBegin) / (gyroToGo - gyroBegin)));
-                of = noMiss.calculate(power, (p - gyroBegin) / (gyroToGo - gyroBegin));
-                of += 0.05;
-                if (gyroToGo > p) {
-                    rightDrive.setPower(power * of);
-                    leftDrive.setPower(-power * of);
-                } else if (gyroToGo < p) {
-                    rightDrive.setPower(-power * of);
-                    leftDrive.setPower(power * of);
+                double progress=(p - gyroBegin) / (gyroToGo - gyroBegin);
+                telemetry.addData("Progress:", progress);
+                telemetry.addData("ToGo:", gyroToGo);
+                telemetry.addData("Start:", gyroBegin);
+                telemetry.addData("Current:", p);
+                if ((int) gyroToGo == (int) p) {
+                    if (times >= 3) {
+                        resetRobot();
+                        return true;
+                    } else {
+                        rightDrive.setPower(0);
+                        leftDrive.setPower(0);
+                        times++;
+                        return false;
+                    }
+                } else {
+                    times = 0;
+                    double of = noMiss.calculate(power, progress);
+                    rightDrive.setPower(of);
+                    leftDrive.setPower(-of);
+                    return false;
                 }
-                return (p == gyroToGo);
             }
         });
     }
