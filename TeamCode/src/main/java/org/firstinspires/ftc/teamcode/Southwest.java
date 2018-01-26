@@ -85,7 +85,7 @@ public class Southwest extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 new Action[]{
                 }, new Action[]{
         }, new Action[]{
-                r.autonomousCircle(Stats.LEFT, 180, 0.3),
+                r.autonomousCircle(Stats.LEFT, 180),
                 r.autonomousDrive(Stats.westR, 0.5),
                 r.autonomousTurn(Stats.RIGHT,90,0.3),
         });

@@ -197,8 +197,8 @@ public class Robot {
     private void initClaw() {
         clawLeft = hardwareMap.get(Servo.class, "s1");
         clawRight = hardwareMap.get(Servo.class, "s2");
-        clawLeft.setDirection(Servo.Direction.REVERSE);
-        clawRight.setDirection(Servo.Direction.FORWARD);
+        clawLeft.setDirection(Servo.Direction.FORWARD);
+        clawRight.setDirection(Servo.Direction.REVERSE);
     }
 
     private void initJulie() {
@@ -343,36 +343,45 @@ public class Robot {
         });
     }
 
-    public Action autonomousCircle(final int direction, final double degree, final double power) {
+    public Action autonomousCircle(final int direction, final double degree) {
         return new Action(new Action.Execute() {
             double gyroBegin, gyroToGo;
             int times = 0;
             Formula noMiss = new Formula() {
 
                 @Override
-                public double calculate(double power, double progress) {
-                    double lowPower = 0.085;
-                    double returnPower = 0;
-                    if (progress <= 1) {
-                        returnPower = power * (1 - progress);
-                    } else {
-                        returnPower = -(power * (progress - 1));
-                    }
-                    if (returnPower < direction*power / 10 && progress >= 0.9 && progress <= 1.1) {
-                        if (progress <= 1) {
-                            returnPower = lowPower;
+                public double calculate(double progress) {
+                    double marginalError=0.02;
+                    progress*=direction;
+                    if(progress>1-marginalError&&progress<1+marginalError){
+                        return 0;
+                    }else {
+                        if (progress > 1) {
+                            if (progress >= -0.2) {
+                                return 0.1;
+                            } else {
+                                return 0.3;
+                            }
                         } else {
-                            returnPower = -lowPower;
+                            if (progress >= 0.8) {
+                                return -0.1;
+                            } else {
+                                return -0.3;
+                            }
                         }
                     }
-                    return returnPower;
                 }
             };
 
             @Override
             public void onSetup() {
                 gyroBegin = getTurnGyro();
-                gyroToGo = gyroBegin + (degree * direction);
+                if(gyroBegin+direction*degree>180){
+                    gyroToGo=gyroBegin+direction*degree-(direction)*360;
+                }else{
+                    gyroToGo=gyroBegin+direction*degree;
+                }
+//                gyroToGo = gyroBegin + (degree * direction);
             }
 
             @Override
@@ -386,20 +395,19 @@ public class Robot {
                 if ((int) gyroToGo == (int) p) {
                     if (times >= 3) {
                         resetRobot();
-                        return true;
                     } else {
                         rightDrive.setPower(0);
                         leftDrive.setPower(0);
                         times++;
-                        return false;
                     }
                 } else {
                     times = 0;
-                    double of = noMiss.calculate(power, progress);
+                    double of = noMiss.calculate(progress);
                     rightDrive.setPower(of);
                     leftDrive.setPower(-of);
-                    return false;
                 }
+                double of = noMiss.calculate(progress);
+                return (of==0);
             }
         });
     }
@@ -500,30 +508,30 @@ public class Robot {
             @Override
             public void onSetup() {
                 miniaction.add(autonomousWait(500));
-                miniaction.add(autonomousCircle(RIGHT, 8, 0.3));
+                miniaction.add(autonomousCircle(RIGHT, 8));
                 miniaction.add(autonomousJulieDown());
                 julieSensor.enableLed(false);
                 boolean isRed = (julieSensor.red() > julieSensor.blue());
                 //                permanent_messages.add("Color: "+color.red()+" "+color.green()+" "+color.blue());
                 if (team == RED_TEAM) {
                     if (!isRed) {
-                        miniaction.add(autonomousCircle(LEFT, 18, 0.2));
+                        miniaction.add(autonomousCircle(LEFT, 18));
                         miniaction.add(autonomousJulieUp());
-                        miniaction.add(autonomousCircle(RIGHT, 10, 0.5));
+                        miniaction.add(autonomousCircle(RIGHT, 10));
                     } else {
-                        miniaction.add(autonomousCircle(RIGHT, 18, 0.2));
+                        miniaction.add(autonomousCircle(RIGHT, 18));
                         miniaction.add(autonomousJulieUp());
-                        miniaction.add(autonomousCircle(LEFT, 26, 0.5));
+                        miniaction.add(autonomousCircle(LEFT, 26));
                     }
                 } else {
                     if (isRed) {
-                        miniaction.add(autonomousCircle(LEFT, 18, 0.2));
+                        miniaction.add(autonomousCircle(LEFT, 18));
                         miniaction.add(autonomousJulieUp());
-                        miniaction.add(autonomousCircle(RIGHT, 10, 0.5));
+                        miniaction.add(autonomousCircle(RIGHT, 10));
                     } else {
-                        miniaction.add(autonomousCircle(RIGHT, 18, 0.2));
+                        miniaction.add(autonomousCircle(RIGHT, 18));
                         miniaction.add(autonomousJulieUp());
-                        miniaction.add(autonomousCircle(LEFT, 26, 0.5));
+                        miniaction.add(autonomousCircle(LEFT, 26));
                     }
                 }
             }
@@ -751,7 +759,7 @@ public class Robot {
     }
 
     interface Formula {
-        double calculate(double power, double progress);
+        double calculate(double progress);
     }
 }
 
@@ -786,8 +794,8 @@ class Stats {
     static final double fullDown = 0.54;
     static final double readDown = 0.48;
     static final double julZero = 0.02;
-    static final double clawOpen = 0.3;
-    static final double clawClose = 0.55;
+    static final double clawOpen = 0.2;
+    static final double clawClose = 0.0;
     static final int armUp = 60;
 
     static class Vuforia {
