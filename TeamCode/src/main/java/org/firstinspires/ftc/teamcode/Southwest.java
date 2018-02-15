@@ -69,12 +69,13 @@ public class Southwest extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     Action[] getAutonomous() {
         return new Action[]{
                 r.autonomousVuforiaInit(),
-                r.autonomousClawClose(),
-                r.autonomousArmMove(Stats.armUp, 0.5),
-                r.autonomousJulieScanPosition(),
-                r.autonomousWait(500),
-                r.autonomousJulieColorScan(Stats.RED_TEAM),
-                r.autonomousWait(500),
+//                r.autonomousClawClose(),
+//                r.autonomousArmMove(Stats.armUp, 0.5),
+//                r.autonomousJulieScanPosition(),
+//                r.autonomousWait(500),
+//                r.autonomousJulieColorScan(Stats.RED_TEAM),
+//                r.autonomousJulieUp(),
+//                r.autonomousWait(500),
                 r.autonomousVuforia(getScenario()),
                 r.autonomousDone()
         };
@@ -83,11 +84,22 @@ public class Southwest extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     Robot.Scenario getScenario() {
         return new Robot.Scenario(
                 new Action[]{
+                        r.autonomousCircle(Stats.RIGHT, 180,0.002),
+                        r.autonomousDrive(Stats.tipper,0.3),
+                        r.autonomousDriveToGyro(0.5,Stats.FORWARD,0.3,0,1,2),
+                        r.autonomousDrive(Stats.backToBalance,0.5),
+                        r.autonomousDrive(Stats.westL, 0.5),
+                        r.autonomousCircle(Stats.RIGHT,90,0.001),
                 }, new Action[]{
+//                r.autonomousCircleByEncoder(Stats.LEFT, 180,0.3),
+//                r.autonomousDrive(7, 0.5),
+////                r.autonomousDriveToGyro(2,0.5),
+//                r.autonomousDrive(Stats.westR, 0.5),
+//                r.autonomousCircleByEncoder(Stats.RIGHT,90,0.3),
         }, new Action[]{
-                r.autonomousCircle(Stats.LEFT, 180),
-                r.autonomousDrive(Stats.westR, 0.5),
-                r.autonomousTurn(Stats.RIGHT,90,0.3),
+////                r.autonomousCircle(Stats.LEFT, 180),
+//                r.autonomousDrive(Stats.westR, 0.5),
+//                r.autonomousTurn(Stats.RIGHT,90,0.3),
         });
     }
 

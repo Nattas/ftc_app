@@ -51,20 +51,20 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     public void start() {
         runtime.reset();
         r.peel();
-        r.clawOpen();
+//        r.clawOpen();
     }
 
     @Override
     public void loop() {
         checkEmergency();
         handleGamepad1();
-        handleGamepad2();
+//        handleGamepad2();
         r.loop();
     }
 
     @Override
     public void stop() {
-        r.clawClose();
+//        r.clawClose();
     }
 
     double getDrivePower() {
