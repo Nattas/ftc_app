@@ -132,11 +132,6 @@ public class Robot {
 
     private void showStats() {
         telemetry.addData("Actions:", actions.size());
-//        if (isClawOpen()) {
-//            telemetry.addData("Claw State:", "Opened");
-//        } else {
-//            telemetry.addData("Claw State:", "Closed");
-//        }
         if (MODE == Stats.MULTI) {
             telemetry.addData("Mode", "MultiAction");
         } else {
@@ -293,6 +288,13 @@ public class Robot {
         clawRight.setPosition(Stats.clawClose);
     }
 
+    public void drifttt(){
+        leftDriveA.setPower(-1);
+        leftDriveB.setPower(1);
+        rightDriveA.setPower(-1);
+        rightDriveB.setPower(1);
+    }
+
     public void drive(double power) {
         leftDriveA.setPower(power);
         leftDriveB.setPower(power);
@@ -307,17 +309,22 @@ public class Robot {
             rightDriveA.setPower(-turn);
             rightDriveB.setPower(-turn);
         } else {
-            if (turn < 0) {
-                leftDriveA.setPower(power-turn);
-                leftDriveB.setPower(power-turn);
-                rightDriveA.setPower(power);
-                rightDriveB.setPower(power);
-            } else {
-                rightDriveA.setPower(power-turn);
-                rightDriveB.setPower(power-turn);
-                leftDriveA.setPower(power);
-                leftDriveB.setPower(power);
-            }
+//            if (turn < 0) {
+//                leftDriveA.setPower(power/2+turn/2);
+//                leftDriveB.setPower(power/2+turn/2);
+//                rightDriveA.setPower(power);
+//                rightDriveB.setPower(power);
+//            } else {
+//                rightDriveA.setPower(power/2-turn/2);
+//                rightDriveB.setPower(power/2-turn/2);
+//                leftDriveA.setPower(power);
+//                leftDriveB.setPower(power);
+//            }
+
+            leftDriveA.setPower(power/2+turn);
+            leftDriveB.setPower(power/2+turn);
+            rightDriveA.setPower(power/2-turn);
+            rightDriveB.setPower(power/2-turn);
         }
     }
 

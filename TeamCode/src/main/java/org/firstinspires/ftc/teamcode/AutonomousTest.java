@@ -52,7 +52,7 @@ public class AutonomousTest extends com.qualcomm.robotcore.eventloop.opmode.OpMo
     public void start() {
         runtime.reset();
         r.peel();
-        r.clawClose();
+//        r.clawClose();
     }
 
     @Override
@@ -63,7 +63,7 @@ public class AutonomousTest extends com.qualcomm.robotcore.eventloop.opmode.OpMo
 
     @Override
     public void stop() {
-        r.clawClose();
+//        r.clawClose();
     }
 
     Action[] getAutonomous() {

@@ -40,6 +40,7 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.graphics.Canvas;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.net.wifi.WifiManager;
@@ -47,11 +48,15 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
+import android.view.SurfaceView;
 import android.view.View;
+import android.view.WindowManager;
 import android.webkit.WebView;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -108,6 +113,14 @@ import org.firstinspires.ftc.robotcore.internal.ui.UILocation;
 import org.firstinspires.ftc.robotcore.internal.webserver.RobotControllerWebInfo;
 import org.firstinspires.ftc.robotcore.internal.webserver.WebServer;
 import org.firstinspires.inspection.RcInspectionActivity;
+import org.opencv.android.BaseLoaderCallback;
+import org.opencv.android.CameraBridgeViewBase;
+import org.opencv.android.JavaCameraView;
+import org.opencv.android.LoaderCallbackInterface;
+import org.opencv.android.OpenCVLoader;
+import org.opencv.core.Core;
+import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
 
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -115,7 +128,96 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @SuppressWarnings("WeakerAccess")
 public class FtcRobotControllerActivity extends Activity
   {
-  public static final String TAG = "RCActivity";
+
+    class FrameGrabber implements CameraBridgeViewBase.CvCameraViewListener2 {
+      public FrameGrabber(CameraBridgeViewBase cameraBridgeViewBase) {
+
+        cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
+        cameraBridgeViewBase.setCvCameraViewListener(this);
+      }
+
+      @Override
+      public void onCameraViewStarted(int width, int height) {
+
+      }
+
+      @Override
+      public void onCameraViewStopped() {
+
+      }
+
+      @Override
+      public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+        Mat destination = new Mat();
+        Core.rotate(destination, inputFrame.rgba(), Core.ROTATE_90_CLOCKWISE); //ROTATE_180 or ROTATE_90_COUNTERCLOCKWISE
+
+        return destination;
+      }
+    }
+
+    private CameraBridgeViewBase cameraBridgeViewBase;
+
+    void openCvCreate(){
+//      getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+      cameraBridgeViewBase = (JavaCameraView) findViewById(R.id.opencv_cameraview);
+//      findViewById(R.id.opencv_holder).setRotation(90);
+      new FrameGrabber(cameraBridgeViewBase);
+    }
+
+    void openCvPause(){
+      if (cameraBridgeViewBase != null) {
+        cameraBridgeViewBase.disableView();
+      }
+    }
+
+    void openCvResume(){
+      if (!OpenCVLoader.initDebug()) {
+        Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
+        OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, mLoaderCallback);
+      } else {
+        Log.d(TAG, "OpenCV library found inside package. Using it!");
+        mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+      }
+    }
+
+    public void openCvDestroy() {
+      if (cameraBridgeViewBase != null) {
+        cameraBridgeViewBase.disableView();
+      }
+    }
+
+    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+      @Override
+      public void onManagerConnected(int status) {
+        switch (status) {
+          case LoaderCallbackInterface.SUCCESS:
+            Log.i(TAG, "OpenCV Manager Connected");
+            //from now onwards, you can use OpenCV API
+            //          Mat m = new Mat(5, 10, CvType.CV_8UC1, new Scalar(0));
+            cameraBridgeViewBase.enableView();
+            break;
+          case LoaderCallbackInterface.INIT_FAILED:
+            Log.i(TAG, "Init Failed");
+            break;
+          case LoaderCallbackInterface.INSTALL_CANCELED:
+            Log.i(TAG, "Install Cancelled");
+            break;
+          case LoaderCallbackInterface.INCOMPATIBLE_MANAGER_VERSION:
+            Log.i(TAG, "Incompatible Version");
+            break;
+          case LoaderCallbackInterface.MARKET_ERROR:
+            Log.i(TAG, "Market Error");
+            break;
+          default:
+            Log.i(TAG, "OpenCV Manager Install");
+            super.onManagerConnected(status);
+            break;
+        }
+      }
+    };
+
+    public static final String TAG = "RCActivity";
   public String getTag() { return TAG; }
 
   private static final int REQUEST_CONFIG_WIFI_CHANNEL = 1;
@@ -247,7 +349,9 @@ public class FtcRobotControllerActivity extends Activity
     eventLoop = null;
 
     setContentView(R.layout.activity_ftc_controller);
-
+    ///OpenCV
+    openCvCreate();
+    ///OpenCV
     preferencesHelper = new PreferencesHelper(TAG, context);
     preferencesHelper.writeBooleanPrefIfDifferent(context.getString(R.string.pref_rc_connected), true);
     preferencesHelper.getSharedPreferences().registerOnSharedPreferenceChangeListener(sharedPreferencesListener);
@@ -346,12 +450,18 @@ public class FtcRobotControllerActivity extends Activity
   @Override
   protected void onResume() {
     super.onResume();
+    ///OpenCV
+    openCvResume();
+    ///OpenCV
     RobotLog.vv(TAG, "onResume()");
   }
 
   @Override
   protected void onPause() {
     super.onPause();
+    ///OpenCV
+    openCvPause();
+    ///OpenCV
     RobotLog.vv(TAG, "onPause()");
     if (programmingModeController.isActive()) {
       programmingModeController.stopProgrammingMode();
@@ -369,6 +479,9 @@ public class FtcRobotControllerActivity extends Activity
   @Override
   protected void onDestroy() {
     super.onDestroy();
+    ///OpenCV
+    openCvDestroy();
+    ///OpenCV
     RobotLog.vv(TAG, "onDestroy()");
 
     shutdownRobot();  // Ensure the robot is put away to bed
