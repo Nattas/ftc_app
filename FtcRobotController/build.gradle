@@ -13,9 +13,6 @@ android {
         versionCode 1
         versionName '0.1'
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-        ndk {
-            abiFilters "armeabi-v7a", "x86", "armeabi"
-        }
     }
     buildTypes {
         release {
@@ -40,4 +37,5 @@ apply from: 'build.release.gradle'
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation project(':openCVLibrary340')
+    implementation project(':opencv')
 }

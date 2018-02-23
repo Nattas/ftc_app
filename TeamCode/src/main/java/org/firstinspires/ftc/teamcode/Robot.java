@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.util.Log;
 
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.hardware.bosch.JustLoggingAccelerationIntegrator;
@@ -13,6 +14,8 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
+import org.firstinspires.ftc.robotcontroller.internal.CommTunnle;
+import org.firstinspires.ftc.robotcontroller.internal.FtcRobotControllerActivity;
 import org.firstinspires.ftc.robotcore.external.ClassFactory;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
@@ -42,6 +45,9 @@ public class Robot {
     private ArrayList<Action> actions = new ArrayList<>();
     private ArrayList<String> permanent_messages = new ArrayList<>();
     private int MODE = Stats.MULTI;
+    private int armLimit=0;
+    private int armBreak=0;
+    private boolean limitArm=true;
     //Vuforia
     private boolean vuforiaStatus = false;
     private OpenGLMatrix lastLocation = null;
@@ -49,10 +55,16 @@ public class Robot {
     private VuforiaTrackable relicTemplate = null;
     private VuforiaTrackables relicTrackables = null;
 
-    public Robot(HardwareMap hardwareMap, ElapsedTime runtime, Telemetry telemetry) {
+    public Robot(HardwareMap hardwareMap, ElapsedTime runtime, final Telemetry telemetry) {
         this.hardwareMap = hardwareMap;
         this.runtime = runtime;
         this.telemetry = telemetry;
+        FtcRobotControllerActivity.outgoingTunnle.addReceiver(new CommTunnle.OnTunnle<String>() {
+            @Override
+            public void onReceive(String s) {
+                telemetry.addData("MCT",s);
+            }
+        });
     }
 
     public void init() {
@@ -240,6 +252,8 @@ public class Robot {
         armRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         armRight.setDirection(DcMotor.Direction.REVERSE);
         armRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        armLimit=armLeft.getCurrentPosition()+500;
+        armBreak=armLeft.getCurrentPosition()+50;
     }
 
     private void initSucker() {
@@ -338,8 +352,30 @@ public class Robot {
     }
 
     public void arm(double speed) {
-        armLeft.setPower(speed);
-        armRight.setPower(speed);
+        if(speed<0) {
+            if(limitArm) {
+                if (armLeft.getCurrentPosition() > armLimit) {
+                    armLeft.setPower(speed / 2);
+                    armRight.setPower(speed / 2);
+                } else if(armLeft.getCurrentPosition() < armLimit&&armLeft.getCurrentPosition() > armBreak){
+                    armLeft.setPower(speed/8);
+                    armRight.setPower(speed/8);
+                }else{
+                    armLeft.setPower(0);
+                    armRight.setPower(0);
+                }
+            }else{
+                armLeft.setPower(speed / 2);
+                armRight.setPower(speed / 2);
+            }
+        }else{
+            armLeft.setPower(speed);
+            armRight.setPower(speed);
+        }
+    }
+
+    public void setLimitArm(boolean limit){
+        limitArm=limit;
     }
 
     public boolean isRobotBusy() {

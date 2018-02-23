@@ -118,6 +118,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
 
     void handleGamepad2() {
         if (!r.isRobotBusy()) {
+//            r.setLimitArm(!gamepad2.b);
             r.arm(getArmSpeed());
         }
         //        if(gamepad2.left_stick_x!=0){

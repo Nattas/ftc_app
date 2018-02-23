@@ -40,7 +40,9 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Matrix;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.net.wifi.WifiManager;
@@ -54,10 +56,12 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.WebView;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -118,18 +122,25 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.JavaCameraView;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
 import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import fantastic.fourmula.opencv.DetectGlyphs;
+
 @SuppressWarnings("WeakerAccess")
 public class FtcRobotControllerActivity extends Activity
   {
-    private final boolean openCv=false;
+    public static CommTunnle<String> outgoingTunnle=new CommTunnle<>();
+    public static DetectGlyphs glyphDetector=new DetectGlyphs();
+    private final boolean openCv=true;
     class FrameGrabber implements CameraBridgeViewBase.CvCameraViewListener2 {
       public FrameGrabber(CameraBridgeViewBase cameraBridgeViewBase) {
 
@@ -150,28 +161,54 @@ public class FtcRobotControllerActivity extends Activity
       @Override
       public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Mat mRgba = inputFrame.rgba();
-        Imgproc.resize(mRgba, mRgba,  mRgba.size());
-
-//        Core.flip(mRgba, mRgba, 1 );
-//        Core.rotate(mRgba,mRgba,Core.ROTATE_90_COUNTERCLOCKWISE);
-        Core.rotate(mRgba,mRgba,0);
-        return mRgba; // This function
+//        Imgproc.resize(mRgba, mRgba,  mRgba.size());
+//
+////        Core.flip(mRgba, mRgba, 1 );
+////        Core.rotate(mRgba,mRgba,Core.ROTATE_90_COUNTERCLOCKWISE);
+//        Core.rotate(mRgba,mRgba,0);
+        mRgba=glyphDetector.effect(inputFrame);
+        final Bitmap b = Bitmap.createBitmap(mRgba.width(), mRgba.height(), Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(mRgba,b);
+        runOnUiThread(new Runnable() {
+          @Override
+          public void run() {
+            effectedView.setImageBitmap(rotateBitmap(Bitmap.createScaledBitmap(b, frameLayout.getWidth(), frameLayout.getHeight(), false),90));
+          }
+        });
+        return mRgba;
         // must return
       }
     }
 
-    private CameraBridgeViewBase cameraBridgeViewBase;
+    public Bitmap rotateBitmap(Bitmap original, float degrees) {
+      int width = original.getWidth();
+      int height = original.getHeight();
 
+      Matrix matrix = new Matrix();
+      matrix.postRotate(degrees);
+
+      Bitmap rotatedBitmap = Bitmap.createBitmap(original, 0, 0, width, height, matrix, true);
+      Canvas canvas = new Canvas(rotatedBitmap);
+      canvas.drawBitmap(original, 5.0f, 0.0f, null);
+
+      return rotatedBitmap;
+    }
+
+    private CameraBridgeViewBase cameraBridgeViewBase;
+    private ImageView effectedView;
+    private FrameLayout frameLayout;
     void openCvCreate(){
+      cameraBridgeViewBase = (JavaCameraView) findViewById(R.id.opencv_cameraview);
+      effectedView = (ImageView)findViewById(R.id.effected_opencv);
+      frameLayout = (FrameLayout) findViewById(R.id.opencv_holder);
       if(openCv) {
-        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+        System.loadLibrary("opencv_java3");
         //      getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        cameraBridgeViewBase = (JavaCameraView) findViewById(R.id.opencv_cameraview);
         cameraBridgeViewBase.SetCaptureFormat(CameraBridgeViewBase.CAMERA_ID_ANY);
         //      findViewById(R.id.opencv_holder).setRotation(90);
         new FrameGrabber(cameraBridgeViewBase);
       }else{
-        (findViewById(R.id.opencv_holder)).setVisibility(View.GONE);
+       frameLayout.setVisibility(View.GONE);
       }
     }
 
@@ -334,6 +371,12 @@ public class FtcRobotControllerActivity extends Activity
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+    outgoingTunnle.addReceiver(new CommTunnle.OnTunnle<String>() {
+      @Override
+      public void onReceive(String s) {
+        Log.i("Outgoing Comm Tunnle",s);
+      }
+    });
     RobotLog.onApplicationStart();  // robustify against onCreate() following onDestroy() but using the same app instance, which apparently does happen
     RobotLog.vv(TAG, "onCreate()");
     ThemedActivity.appAppThemeToActivity(getTag(), this); // do this way instead of inherit to help AppInventor

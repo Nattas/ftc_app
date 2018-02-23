@@ -1,5 +1,6 @@
 package org.opencv.android;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
 import android.content.Context;
@@ -212,6 +213,8 @@ public class JavaCameraView extends CameraBridgeViewBase implements PreviewCallb
                        mCamera.setPreviewDisplay(null);
 
                     /* Finally we are ready to start the preview */
+                    setDisplayOrientation(mCamera, 90);
+                    mCamera.setPreviewDisplay(getHolder());
                     Log.d(TAG, "startPreview");
                     mCamera.startPreview();
                 }
@@ -224,6 +227,19 @@ public class JavaCameraView extends CameraBridgeViewBase implements PreviewCallb
         }
 
         return result;
+    }
+
+    protected void setDisplayOrientation(Camera camera, int angle){
+        Method downPolymorphic;
+        try
+        {
+            downPolymorphic = camera.getClass().getMethod("setDisplayOrientation", new Class[] { int.class });
+            if (downPolymorphic != null)
+                downPolymorphic.invoke(camera, new Object[] { angle });
+        }
+        catch (Exception ignored)
+        {
+        }
     }
 
     protected void releaseCamera() {
@@ -369,8 +385,11 @@ public class JavaCameraView extends CameraBridgeViewBase implements PreviewCallb
                 }
 
                 if (!mStopThread && hasFrame) {
-                    if (!mFrameChain[1 - mChainIdx].empty())
-                        deliverAndDrawFrame(mCameraFrame[1 - mChainIdx]);
+                    if (!mFrameChain[1 - mChainIdx].empty()) {
+
+                            deliverAndDrawFrame(mCameraFrame[1 - mChainIdx]);
+
+                    }
                 }
             } while (!mStopThread);
             Log.d(TAG, "Finish processing thread");

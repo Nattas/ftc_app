@@ -179,7 +179,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="500dp"
+        android:layout_height="400dp"
         android:layout_alignParentBottom="true"
         android:layout_alignParentStart="true"
         android:id="@+id/opencv_holder">
@@ -187,6 +187,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
           android:layout_width="match_parent"
           android:layout_height="match_parent"
           android:id="@+id/opencv_cameraview"/>
+      <ImageView
+          android:layout_width="match_parent"
+          android:layout_height="400dp"
+          android:id="@+id/effected_opencv"/>
     </FrameLayout>
   </RelativeLayout>
 
