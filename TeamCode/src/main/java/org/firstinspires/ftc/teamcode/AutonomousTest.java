@@ -81,8 +81,8 @@ public class AutonomousTest extends com.qualcomm.robotcore.eventloop.opmode.OpMo
                 }, new Action[]{
         }, new Action[]{
 //                r.autonomousCircle(Stats.LEFT, 180),
-                r.autonomousDrive(Stats.westR, 0.5),
-                r.autonomousTurn(Stats.RIGHT,90,0.8),
+//                r.autonomousDrive(Stats.westR, 0.5),
+//                r.autonomousTurn(Stats.RIGHT,90,0.8),
         });
     }
 

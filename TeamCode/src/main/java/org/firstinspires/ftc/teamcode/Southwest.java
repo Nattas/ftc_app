@@ -32,6 +32,12 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import static org.firstinspires.ftc.teamcode.Stats.LEFT;
+import static org.firstinspires.ftc.teamcode.Stats.RED_TEAM;
+import static org.firstinspires.ftc.teamcode.Stats.RIGHT;
+import static org.firstinspires.ftc.teamcode.Stats.marginalError;
+import static org.firstinspires.ftc.teamcode.Stats.offthebalancing;
+
 @Autonomous(name = "Southwest")
 public class Southwest extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private ElapsedTime runtime = new ElapsedTime();
@@ -52,7 +58,7 @@ public class Southwest extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     public void start() {
         runtime.reset();
         r.peel();
-        r.clawClose();
+//        r.clawClose();
     }
 
     @Override
@@ -63,20 +69,20 @@ public class Southwest extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
 
     @Override
     public void stop() {
-        r.clawClose();
+//        r.clawClose();
     }
 
     Action[] getAutonomous() {
         return new Action[]{
-                r.autonomousVuforiaInit(),
-//                r.autonomousClawClose(),
-//                r.autonomousArmMove(Stats.armUp, 0.5),
+//                r.autonomousVuforiaInit(),
+//                r.autonomousCircle(RIGHT,8,0.002),
 //                r.autonomousJulieScanPosition(),
 //                r.autonomousWait(500),
-//                r.autonomousJulieColorScan(Stats.RED_TEAM),
-//                r.autonomousJulieUp(),
-//                r.autonomousWait(500),
-                r.autonomousVuforia(getScenario()),
+//                r.autonomousJulieColorScan(RED_TEAM),
+                r.autonomousCircle(RIGHT,90,marginalError),
+                r.autonomousCircle(LEFT,90,marginalError),
+//                r.autonomousVuforia(getScenario()),
+//                r.autonomousOpenClaw(),
                 r.autonomousDone()
         };
     }
@@ -84,22 +90,23 @@ public class Southwest extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     Robot.Scenario getScenario() {
         return new Robot.Scenario(
                 new Action[]{
-                        r.autonomousCircle(Stats.RIGHT, 180,0.002),
-                        r.autonomousDrive(Stats.tipper,0.3),
-                        r.autonomousDriveToGyro(0.5,Stats.FORWARD,0.3,0,1,2),
-                        r.autonomousDrive(Stats.backToBalance,0.5),
-                        r.autonomousDrive(Stats.westL, 0.5),
-                        r.autonomousCircle(Stats.RIGHT,90,0.001),
+                        r.autonomousCircle(LEFT, 90,0.002),
+                        r.autonomousDrive(offthebalancing,0.5),
+                        r.autonomousDrive(Stats.redEastLocation1, 0.5),
+                        r.autonomousCircle(RIGHT,90,0.002),
+                        r.autonomousDrive(Stats.intoChypher, 0.5),
                 }, new Action[]{
-//                r.autonomousCircleByEncoder(Stats.LEFT, 180,0.3),
-//                r.autonomousDrive(7, 0.5),
-////                r.autonomousDriveToGyro(2,0.5),
-//                r.autonomousDrive(Stats.westR, 0.5),
-//                r.autonomousCircleByEncoder(Stats.RIGHT,90,0.3),
+               r.autonomousCircle(LEFT, 90,0.002),
+                r.autonomousDrive(offthebalancing,0.5),
+                r.autonomousDrive(Stats.redEastLocation2, 0.5),
+                r.autonomousCircle(RIGHT,90,0.002),
+                r.autonomousDrive(Stats.intoChypher, 0.5),
         }, new Action[]{
-////                r.autonomousCircle(Stats.LEFT, 180),
-//                r.autonomousDrive(Stats.westR, 0.5),
-//                r.autonomousTurn(Stats.RIGHT,90,0.3),
+                r.autonomousCircle(LEFT, 90,0.002),
+                r.autonomousDrive(offthebalancing,0.5),
+                r.autonomousDrive(Stats.redEastLocation3, 0.5),
+                r.autonomousCircle(RIGHT,90,0.002),
+                r.autonomousDrive(Stats.intoChypher, 0.5),
         });
     }
 

@@ -58,7 +58,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     public void loop() {
         checkEmergency();
         handleGamepad1();
-//        handleGamepad2();
+        handleGamepad2();
         r.loop();
     }
 
@@ -97,7 +97,7 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
             speed += gamepad2.right_trigger;
         }
         if (gamepad2.left_trigger != 0) {
-            speed -= gamepad2.left_trigger / 4;
+            speed -= gamepad2.left_trigger;
         }
         return speed * 0.7;
     }
@@ -125,11 +125,9 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
         //            buttonSleep();
         //        }
         if (gamepad2.left_bumper) {
-            r.clawOpen();
-            buttonSleep();
+            r.pump(1);
         } else if (gamepad2.right_bumper) {
-            r.clawClose();
-            buttonSleep();
+            r.pump(-1);
         } else if (gamepad2.y) {
             r.julieUp();
             buttonSleep();

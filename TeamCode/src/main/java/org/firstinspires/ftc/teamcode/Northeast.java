@@ -52,7 +52,6 @@ public class Northeast extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     public void start() {
         runtime.reset();
         r.peel();
-        r.clawClose();
     }
 
     @Override
@@ -63,13 +62,11 @@ public class Northeast extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
 
     @Override
     public void stop() {
-        r.clawClose();
     }
 
     Action[] getAutonomous() {
         return new Action[]{
-                r.autonomousClawClose(),
-                r.autonomousArmMove(Stats.armUp, 0.5),
+//                r.autonomousArmMove(Stats.armUp, 0.5),
                 r.autonomousJulieScanPosition(),
                 r.autonomousWait(500),
                 r.autonomousJulieColorScan(Stats.RED_TEAM),
@@ -84,7 +81,7 @@ public class Northeast extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 new Action[]{
                 }, new Action[]{
         }, new Action[]{
-                r.autonomousDrive(Stats.westR, 0.5)
+//                r.autonomousDrive(Stats.westR, 0.5)
         });
     }
 

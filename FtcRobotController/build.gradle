@@ -13,6 +13,9 @@ android {
         versionCode 1
         versionName '0.1'
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        ndk {
+            abiFilters "armeabi-v7a", "x86", "armeabi"
+        }
     }
     buildTypes {
         release {
@@ -28,12 +31,13 @@ android {
 
 repositories {
     flatDir {
-        dirs '../libs'
+        dirs '../libs','./jniLibs'
     }
 }
 
 apply from: 'build.release.gradle'
 
 dependencies {
-    compile project(path: ':openCVLibrary340')
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation project(':openCVLibrary340')
 }

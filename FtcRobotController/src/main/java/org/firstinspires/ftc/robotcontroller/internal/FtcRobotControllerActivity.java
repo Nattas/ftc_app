@@ -120,6 +120,7 @@ import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.Queue;
@@ -128,7 +129,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @SuppressWarnings("WeakerAccess")
 public class FtcRobotControllerActivity extends Activity
   {
-
+    private final boolean openCv=false;
     class FrameGrabber implements CameraBridgeViewBase.CvCameraViewListener2 {
       public FrameGrabber(CameraBridgeViewBase cameraBridgeViewBase) {
 
@@ -148,42 +149,57 @@ public class FtcRobotControllerActivity extends Activity
 
       @Override
       public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-        Mat destination = new Mat();
-        Core.rotate(destination, inputFrame.rgba(), Core.ROTATE_90_CLOCKWISE); //ROTATE_180 or ROTATE_90_COUNTERCLOCKWISE
+        Mat mRgba = inputFrame.rgba();
+        Imgproc.resize(mRgba, mRgba,  mRgba.size());
 
-        return destination;
+//        Core.flip(mRgba, mRgba, 1 );
+//        Core.rotate(mRgba,mRgba,Core.ROTATE_90_COUNTERCLOCKWISE);
+        Core.rotate(mRgba,mRgba,0);
+        return mRgba; // This function
+        // must return
       }
     }
 
     private CameraBridgeViewBase cameraBridgeViewBase;
 
     void openCvCreate(){
-//      getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
-      cameraBridgeViewBase = (JavaCameraView) findViewById(R.id.opencv_cameraview);
-//      findViewById(R.id.opencv_holder).setRotation(90);
-      new FrameGrabber(cameraBridgeViewBase);
+      if(openCv) {
+        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+        //      getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        cameraBridgeViewBase = (JavaCameraView) findViewById(R.id.opencv_cameraview);
+        cameraBridgeViewBase.SetCaptureFormat(CameraBridgeViewBase.CAMERA_ID_ANY);
+        //      findViewById(R.id.opencv_holder).setRotation(90);
+        new FrameGrabber(cameraBridgeViewBase);
+      }else{
+        (findViewById(R.id.opencv_holder)).setVisibility(View.GONE);
+      }
     }
 
     void openCvPause(){
-      if (cameraBridgeViewBase != null) {
-        cameraBridgeViewBase.disableView();
+      if(openCv) {
+        if (cameraBridgeViewBase != null) {
+          cameraBridgeViewBase.disableView();
+        }
       }
     }
 
     void openCvResume(){
-      if (!OpenCVLoader.initDebug()) {
-        Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
-        OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, mLoaderCallback);
-      } else {
-        Log.d(TAG, "OpenCV library found inside package. Using it!");
-        mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+      if(openCv) {
+        if (!OpenCVLoader.initDebug()) {
+          Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
+          OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, mLoaderCallback);
+        } else {
+          Log.d(TAG, "OpenCV library found inside package. Using it!");
+          mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+        }
       }
     }
 
     public void openCvDestroy() {
-      if (cameraBridgeViewBase != null) {
-        cameraBridgeViewBase.disableView();
+      if(openCv) {
+        if (cameraBridgeViewBase != null) {
+          cameraBridgeViewBase.disableView();
+        }
       }
     }
 

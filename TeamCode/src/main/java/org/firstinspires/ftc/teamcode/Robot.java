@@ -7,6 +7,7 @@ import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.hardware.bosch.JustLoggingAccelerationIntegrator;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -23,8 +24,6 @@ import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackables;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-import static org.firstinspires.ftc.teamcode.Stats.CIRCLE_HIGH;
-import static org.firstinspires.ftc.teamcode.Stats.CIRCLE_LOW;
 import static org.firstinspires.ftc.teamcode.Stats.CIRCLING_HIGH;
 import static org.firstinspires.ftc.teamcode.Stats.CIRCLING_LOW;
 import static org.firstinspires.ftc.teamcode.Stats.LEFT;
@@ -36,7 +35,7 @@ public class Robot {
     private HardwareMap hardwareMap;
     private ElapsedTime runtime;
     private Telemetry telemetry;
-    private DcMotor leftDriveA,leftDriveB, rightDriveA,rightDriveB, arm;
+    private DcMotor leftDriveA, leftDriveB, rightDriveA, rightDriveB, armLeft, armRight, suckerRight, suckerLeft;
     private Servo clawRight, clawLeft, julie;
     private ColorSensor julieSensor;
     private BNO055IMU gyro;
@@ -94,6 +93,9 @@ public class Robot {
         resetRobot();
         actions.clear();
         MODE = Stats.LINEBYLINE;
+    }
+
+    public void collapse() {
     }
 
     private void handleActions() {
@@ -161,13 +163,14 @@ public class Robot {
         leftDriveB.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         rightDriveA.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         rightDriveB.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-//        resetArm();
+        //        resetArm();
     }
 
-    @Deprecated
     private void resetArm() {
-        arm.setPower(0);
-        arm.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        armLeft.setPower(0);
+        armLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        armRight.setPower(0);
+        armRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
     }
 
     private void emergencyStop() {
@@ -177,15 +180,10 @@ public class Robot {
     }
 
     private void hardwareInit() {
-//        initServos();
+        //        initServos();
         initMotors();
-//        initColor();
+        //        initColor();
         initGyro();
-    }
-
-    private void collapse() {
-//        clawClose();
-//        collapseJulie();
     }
 
     private void collapseJulie() {
@@ -212,7 +210,7 @@ public class Robot {
     private void initMotors() {
         initLeftDrive();
         initRightDrive();
-//        initArm();
+        initArm();
     }
 
     private void initLeftDrive() {
@@ -233,12 +231,26 @@ public class Robot {
         rightDriveB.setDirection(DcMotor.Direction.FORWARD);
     }
 
-    @Deprecated
     private void initArm() {
-        arm = hardwareMap.get(DcMotor.class, "arm");
-        arm.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        arm.setDirection(DcMotor.Direction.REVERSE);
-        arm.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        armLeft = hardwareMap.get(DcMotor.class, "armLeft");
+        armLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        armLeft.setDirection(DcMotor.Direction.FORWARD);
+        armLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        armRight = hardwareMap.get(DcMotor.class, "armRight");
+        armRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        armRight.setDirection(DcMotor.Direction.REVERSE);
+        armRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+    }
+
+    private void initSucker() {
+        suckerLeft = hardwareMap.get(DcMotor.class, "suckerLeft");
+        suckerLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        suckerLeft.setDirection(DcMotor.Direction.REVERSE);
+        suckerLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        suckerRight = hardwareMap.get(DcMotor.class, "suckerRight");
+        suckerRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        suckerRight.setDirection(DcMotor.Direction.REVERSE);
+        suckerRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
     }
 
     private void initColor() {
@@ -278,17 +290,7 @@ public class Robot {
         julie.setPosition(Stats.fullDown);
     }
 
-    public void clawOpen() {
-        clawLeft.setPosition(Stats.clawOpen);
-        clawRight.setPosition(Stats.clawOpen);
-    }
-
-    public void clawClose() {
-        clawLeft.setPosition(Stats.clawClose);
-        clawRight.setPosition(Stats.clawClose);
-    }
-
-    public void drifttt(){
+    public void drifttt() {
         leftDriveA.setPower(-1);
         leftDriveB.setPower(1);
         rightDriveA.setPower(-1);
@@ -304,40 +306,44 @@ public class Robot {
 
     public void turn(double power, double turn) {
         if (power == 0) {
+            //Commented Is The "OneOmni" Config.
             leftDriveA.setPower(turn);
             leftDriveB.setPower(turn);
             rightDriveA.setPower(-turn);
             rightDriveB.setPower(-turn);
+            //            leftDriveA.setPower(turn);
+            //            rightDriveA.setPower(-turn);
         } else {
-//            if (turn < 0) {
-//                leftDriveA.setPower(power/2+turn/2);
-//                leftDriveB.setPower(power/2+turn/2);
-//                rightDriveA.setPower(power);
-//                rightDriveB.setPower(power);
-//            } else {
-//                rightDriveA.setPower(power/2-turn/2);
-//                rightDriveB.setPower(power/2-turn/2);
-//                leftDriveA.setPower(power);
-//                leftDriveB.setPower(power);
-//            }
-
-            leftDriveA.setPower(power/2+turn);
-            leftDriveB.setPower(power/2+turn);
-            rightDriveA.setPower(power/2-turn);
-            rightDriveB.setPower(power/2-turn);
+            //            if (turn < 0) {
+            //                leftDriveA.setPower(power/2+turn/2);
+            //                leftDriveB.setPower(power/2+turn/2);
+            //                rightDriveA.setPower(power);
+            //                rightDriveB.setPower(power);
+            //            } else {
+            //                rightDriveA.setPower(power/2-turn/2);
+            //                rightDriveB.setPower(power/2-turn/2);
+            //                leftDriveA.setPower(power);
+            //                leftDriveB.setPower(power);
+            //            }
+            leftDriveA.setPower(power / 2 + turn);
+            leftDriveB.setPower(power / 2 + turn);
+            rightDriveA.setPower(power / 2 - turn);
+            rightDriveB.setPower(power / 2 - turn);
         }
     }
 
+    public void pump(double speed) {
+        suckerRight.setPower(speed);
+        suckerLeft.setPower(speed);
+    }
+
     public void arm(double speed) {
-        arm.setPower(speed);
+        armLeft.setPower(speed);
+        armRight.setPower(speed);
     }
 
     public boolean isRobotBusy() {
         return (actions.size() != 0);
-    }
-
-    private boolean isClawOpen() {
-        return clawLeft.getPosition() < Stats.clawClose && clawRight.getPosition() < Stats.clawClose;
     }
 
     private boolean isJulieDown() {
@@ -348,16 +354,8 @@ public class Robot {
         return gyro.getAngularOrientation().firstAngle;
     }
 
-    public int boolToInt(boolean a){
-        if(a){
-            return 1;
-        }else{
-            return 0;
-        }
-    }
-
-    public double trim(double orginal,double orginalRangeMin,double orginalRangeMax,double newRangeMin,double newRangeMax){
-        return ((orginal/orginalRangeMax-orginalRangeMin)*(newRangeMax-newRangeMin))+newRangeMin;
+    public double trim(double orginal, double orginalRangeMin, double orginalRangeMax, double newRangeMin, double newRangeMax) {
+        return ((orginal / orginalRangeMax - orginalRangeMin) * (newRangeMax - newRangeMin)) + newRangeMin;
     }
 
     @Deprecated
@@ -381,7 +379,7 @@ public class Robot {
 
             @Override
             public boolean onLoop() {
-                if (!rightDriveA.isBusy() && !rightDriveB.isBusy()&& !leftDriveA.isBusy()&& !leftDriveB.isBusy()) {
+                if (!rightDriveA.isBusy() && !rightDriveB.isBusy() && !leftDriveA.isBusy() && !leftDriveB.isBusy()) {
                     resetRobot();
                     return true;
                 }
@@ -402,10 +400,13 @@ public class Robot {
                     if ((progress >= 1 - marginalError && progress <= 1 + marginalError)) {
                         return 0;
                     } else {
-                        double power=1-progress;
-//                        telemetry.addData("RETURN POWER STAGE A",power);
-//                        return trim(power,0,1,CIRCLE_LOW,CIRCLE_HIGH);
-                        return trim(power,0,1,CIRCLING_LOW,CIRCLING_HIGH);
+                        double power = 1 - progress;
+                        if(progress>=0.5){
+                            return (0.5-power/2)*(CIRCLING_HIGH-CIRCLING_LOW)+CIRCLING_LOW;
+                        }else{
+                            return (power)*(CIRCLING_HIGH-CIRCLING_LOW)+CIRCLING_LOW;
+
+                        }
                     }
                 }
             };
@@ -413,88 +414,51 @@ public class Robot {
             @Override
             public void onSetup() {
                 gyroBegin = getTurnGyro();
-                gyroToGo=gyroBegin+degree;
-                if(gyroBegin+degree>TERMINAL){
-                    gyroToGo-=360;
-                }
+                gyroToGo = gyroBegin + (direction * degree);
+//                if (gyroToGo > TERMINAL) {
+//                    gyroToGo = gyroToGo - 360;
+//                } else if (gyroToGo < -TERMINAL) {
+//                    gyroToGo = gyroToGo + 360;
+//                }
             }
 
             @Override
             public boolean onLoop() {
                 double p = getTurnGyro();
-                double stageA=p-gyroBegin;
-                double stageB=gyroToGo-gyroBegin;
-                double progress=stageA/stageB;
-//                progress=Math.abs(progress);
-                telemetry.addData("Progress:", progress);
-                telemetry.addData("ToGo:", gyroToGo);
-                telemetry.addData("Start:", gyroBegin);
-                telemetry.addData("Current:", p);
+                double stageA = p - gyroBegin;
+                double stageB = gyroToGo - gyroBegin;
+                double progress = stageA / stageB;
+                //                progress=Math.abs(progress);
+//                telemetry.addData("Progress:", progress);
+//                progress=Range.clip(progress,0,1);
+                //                telemetry.addData("ToGo:", gyroToGo);
+                //                telemetry.addData("Start:", gyroBegin);
+                //                telemetry.addData("Current:", p);
                 double of = noMiss.calculate(progress);
-                if(direction==RIGHT) {
-                    turn(0,-of);
-//                    rightDrive.setPower(of);
-//                    leftDrive.setPower(-of);
-                }else{
-                   turn(0,of);
-                }
+                turn(0, -direction*of);
                 return (of == 0);
             }
         });
     }
-
-    @Deprecated
-    public Action autonomousTurn(final int direction, final double degree, final double power) {
-        return new Action(new Action.Execute() {
-            @Override
-            public void onSetup() {
-                if (direction == RIGHT) {
-                    leftDriveA.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    leftDriveA.setTargetPosition(leftDriveA.getCurrentPosition() + (int) (Stats.tickPerDegree * degree));
-                    leftDriveA.setPower(power);
-                    leftDriveB.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    leftDriveB.setTargetPosition(leftDriveB.getCurrentPosition() + (int) (Stats.tickPerDegree * degree));
-                    leftDriveB.setPower(power);
-                } else {
-                    rightDriveA.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    rightDriveA.setTargetPosition(rightDriveA.getCurrentPosition() + (int) (Stats.tickPerDegree * degree));
-                    rightDriveA.setPower(power);
-                    rightDriveB.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    rightDriveB.setTargetPosition(rightDriveB.getCurrentPosition() + (int) (Stats.tickPerDegree * degree));
-                    rightDriveB.setPower(power);
-                }
-            }
-
-            @Override
-            public boolean onLoop() {
-                if (!rightDriveA.isBusy() && !rightDriveB.isBusy()&& !leftDriveA.isBusy()&& !leftDriveB.isBusy()) {
-                    resetRobot();
-                    return true;
-                }
-                return false;
-            }
-        });
-    }
-
-    public Action autonomousArmMove(final double centimeters, final double power) {
-        return new Action(new Action.Execute() {
-            @Override
-            public void onSetup() {
-                arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                arm.setTargetPosition((int) (arm.getCurrentPosition() + (Stats.tickPerArmCentimeter * centimeters)));
-                arm.setPower(power);
-            }
-
-            @Override
-            public boolean onLoop() {
-                if (!arm.isBusy()) {
-                    resetArm();
-                    return true;
-                }
-                return false;
-            }
-        });
-    }
+    //    public Action autonomousArmMove(final double centimeters, final double power) {
+    //        return new Action(new Action.Execute() {
+    //            @Override
+    //            public void onSetup() {
+    //                arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+    //                arm.setTargetPosition((int) (arm.getCurrentPosition() + (Stats.tickPerArmCentimeter * centimeters)));
+    //                arm.setPower(power);
+    //            }
+    //
+    //            @Override
+    //            public boolean onLoop() {
+    //                if (!arm.isBusy()) {
+    //                    resetArm();
+    //                    return true;
+    //                }
+    //                return false;
+    //            }
+    //        });
+    //    }
 
     public Action autonomousJulieUp() {
         return new Action(new Action.Execute() {
@@ -676,30 +640,42 @@ public class Robot {
         });
     }
 
-    public Action autonomousClawOpen() {
+    public Action autonomousSuck(final int millis, final double speed) {
         return new Action(new Action.Execute() {
+            int targetTime = 0;
+
             @Override
             public void onSetup() {
-                clawOpen();
+                targetTime = (int) runtime.milliseconds() + millis;
+                pump(-speed);
             }
 
             @Override
             public boolean onLoop() {
-                return isClawOpen();
+                if (runtime.milliseconds() >= targetTime) {
+                    pump(0);
+                }
+                return (runtime.milliseconds() >= targetTime);
             }
         });
     }
 
-    public Action autonomousClawClose() {
+    public Action autonomousSpit(final int millis, final double speed) {
         return new Action(new Action.Execute() {
+            int targetTime = 0;
+
             @Override
             public void onSetup() {
-                clawClose();
+                targetTime = (int) runtime.milliseconds() + millis;
+                pump(speed);
             }
 
             @Override
             public boolean onLoop() {
-                return !isClawOpen();
+                if (runtime.milliseconds() >= targetTime) {
+                    pump(0);
+                }
+                return (runtime.milliseconds() >= targetTime);
             }
         });
     }
@@ -724,7 +700,7 @@ public class Robot {
 
             @Override
             public boolean onLoop() {
-                if (!rightDriveA.isBusy() && !rightDriveB.isBusy()&& !leftDriveA.isBusy()&& !leftDriveB.isBusy()) {
+                if (!rightDriveA.isBusy() && !rightDriveB.isBusy() && !leftDriveA.isBusy() && !leftDriveB.isBusy()) {
                     resetRobot();
                     return true;
                 }
@@ -818,24 +794,27 @@ public class Robot {
 
 class Stats {
     static final int MULTI = 1;
-    static final double CIRCLE_LOW = 0.11;
-    static final double CIRCLING_LOW = CIRCLE_LOW+0.025;
-    static final double CIRCLING_HIGH = CIRCLE_LOW+0.06;
-    static final double CIRCLE_HIGH = 0.3;
+    static final double CIRCLING_LOW = 0.13;
+    static final double CIRCLING_HIGH = 0.18;
     static final double TERMINAL = 179.99;
     static final int LINEBYLINE = 2;
-    static final int RIGHT = 1;
-    static final int LEFT = -1;
+    static final int RIGHT = -1;
+    static final int LEFT = 1;
     static final int FORWARD = 1;
     static final int BACKWARDS = -1;
     static final int BLUE_TEAM = 1;
     static final int RED_TEAM = 2;
-    static final double ofthebalance = 30;
-    static final double westR = 15;
-    static final double westL = 54;
-    static final double westCenterForwardCm = ofthebalance + 19;
-    static final double tipper=15;
-    static final double backToBalance=-30;
+    static final int WHEEL_RADIUS = 5;
+    static final double marginalError = 0.015;
+    static final double offthebalancing = 30 + WHEEL_RADIUS;
+    static final double intoChypher = 45;
+    static final double redEastLocation3 = 54;
+    static final double redEastLocation2 = 31 + redEastLocation3;
+    static final double redEastLocation1 = redEastLocation2 + 31;
+
+    //    static final double westCenterForwardCm = ofthebalance + 19;
+    static final double tipper = 15;
+    static final double backToBalance = -30;
     static final int eastLeftCm = 54;
     static final int eastCenterCm = 36;
     static final int eastRightCm = 19;
