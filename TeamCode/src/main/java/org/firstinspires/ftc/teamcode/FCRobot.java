@@ -111,9 +111,6 @@ public class FCRobot extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
                 r.drive(getDrivePower());
             }
         }
-        if(gamepad1.y){
-            r.drifttt();
-        }
     }
 
     void handleGamepad2() {

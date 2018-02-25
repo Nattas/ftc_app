@@ -2,20 +2,17 @@ package org.firstinspires.ftc.teamcode;
 
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.util.Log;
 
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.hardware.bosch.JustLoggingAccelerationIntegrator;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
-import com.qualcomm.robotcore.util.Range;
 
-import org.firstinspires.ftc.robotcontroller.internal.CommTunnle;
 import org.firstinspires.ftc.robotcontroller.internal.FtcRobotControllerActivity;
+import org.firstinspires.ftc.robotcontroller.internal.Tunnel;
 import org.firstinspires.ftc.robotcore.external.ClassFactory;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
@@ -27,12 +24,15 @@ import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackables;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import fantastic.fourmula.opencv.DetectGlyphs;
+
 import static org.firstinspires.ftc.teamcode.Stats.CIRCLING_HIGH;
 import static org.firstinspires.ftc.teamcode.Stats.CIRCLING_LOW;
 import static org.firstinspires.ftc.teamcode.Stats.LEFT;
 import static org.firstinspires.ftc.teamcode.Stats.RED_TEAM;
 import static org.firstinspires.ftc.teamcode.Stats.RIGHT;
-import static org.firstinspires.ftc.teamcode.Stats.TERMINAL;
+import static org.firstinspires.ftc.teamcode.Stats.julZero;
+import static org.firstinspires.ftc.teamcode.Stats.marginalError;
 
 public class Robot {
     private HardwareMap hardwareMap;
@@ -45,9 +45,9 @@ public class Robot {
     private ArrayList<Action> actions = new ArrayList<>();
     private ArrayList<String> permanent_messages = new ArrayList<>();
     private int MODE = Stats.MULTI;
-    private int armLimit=0;
-    private int armBreak=0;
-    private boolean limitArm=true;
+    private int armLimit = 0;
+    private int armBreak = 0;
+    private boolean limitArm = true;
     //Vuforia
     private boolean vuforiaStatus = false;
     private OpenGLMatrix lastLocation = null;
@@ -59,15 +59,10 @@ public class Robot {
         this.hardwareMap = hardwareMap;
         this.runtime = runtime;
         this.telemetry = telemetry;
-        FtcRobotControllerActivity.outgoingTunnle.addReceiver(new CommTunnle.OnTunnle<String>() {
-            @Override
-            public void onReceive(String s) {
-                telemetry.addData("MCT",s);
-            }
-        });
     }
 
     public void init() {
+        softwareInit();
         hardwareInit();
         collapse();
     }
@@ -108,6 +103,7 @@ public class Robot {
     }
 
     public void collapse() {
+        collapseJulie();
     }
 
     private void handleActions() {
@@ -192,31 +188,27 @@ public class Robot {
     }
 
     private void hardwareInit() {
-        //        initServos();
+        initServos();
         initMotors();
-        //        initColor();
+        initColor();
         initGyro();
     }
 
+    private void softwareInit() {
+        FtcRobotControllerActivity.opencvGlyphTunnel.onTunnel.clear();
+    }
+
     private void collapseJulie() {
-        julie.setPosition(0);
+        julie.setPosition(julZero);
     }
 
     private void initServos() {
-        initClaw();
         initJulie();
     }
 
-    private void initClaw() {
-        clawLeft = hardwareMap.get(Servo.class, "s1");
-        clawRight = hardwareMap.get(Servo.class, "s2");
-        clawLeft.setDirection(Servo.Direction.REVERSE);
-        clawRight.setDirection(Servo.Direction.FORWARD);
-    }
-
     private void initJulie() {
-        julie = hardwareMap.get(Servo.class, "jul");
-        julie.setDirection(Servo.Direction.FORWARD);
+        julie = hardwareMap.get(Servo.class, "julie");
+        julie.setDirection(Servo.Direction.REVERSE);
     }
 
     private void initMotors() {
@@ -252,8 +244,8 @@ public class Robot {
         armRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         armRight.setDirection(DcMotor.Direction.REVERSE);
         armRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        armLimit=armLeft.getCurrentPosition()+500;
-        armBreak=armLeft.getCurrentPosition()+50;
+        armLimit = armLeft.getCurrentPosition() + 500;
+        armBreak = armLeft.getCurrentPosition() + 50;
     }
 
     private void initSucker() {
@@ -268,7 +260,7 @@ public class Robot {
     }
 
     private void initColor() {
-        julieSensor = hardwareMap.get(ColorSensor.class, "color");
+        julieSensor = hardwareMap.get(ColorSensor.class, "julieColor");
         julieSensor.enableLed(false);
     }
 
@@ -352,30 +344,30 @@ public class Robot {
     }
 
     public void arm(double speed) {
-        if(speed<0) {
-            if(limitArm) {
+        if (speed < 0) {
+            if (limitArm) {
                 if (armLeft.getCurrentPosition() > armLimit) {
                     armLeft.setPower(speed / 2);
                     armRight.setPower(speed / 2);
-                } else if(armLeft.getCurrentPosition() < armLimit&&armLeft.getCurrentPosition() > armBreak){
-                    armLeft.setPower(speed/8);
-                    armRight.setPower(speed/8);
-                }else{
+                } else if (armLeft.getCurrentPosition() < armLimit && armLeft.getCurrentPosition() > armBreak) {
+                    armLeft.setPower(speed / 8);
+                    armRight.setPower(speed / 8);
+                } else {
                     armLeft.setPower(0);
                     armRight.setPower(0);
                 }
-            }else{
+            } else {
                 armLeft.setPower(speed / 2);
                 armRight.setPower(speed / 2);
             }
-        }else{
+        } else {
             armLeft.setPower(speed);
             armRight.setPower(speed);
         }
     }
 
-    public void setLimitArm(boolean limit){
-        limitArm=limit;
+    public void setLimitArm(boolean limit) {
+        limitArm = limit;
     }
 
     public boolean isRobotBusy() {
@@ -388,10 +380,6 @@ public class Robot {
 
     public double getTurnGyro() {
         return gyro.getAngularOrientation().firstAngle;
-    }
-
-    public double trim(double orginal, double orginalRangeMin, double orginalRangeMax, double newRangeMin, double newRangeMax) {
-        return ((orginal / orginalRangeMax - orginalRangeMin) * (newRangeMax - newRangeMin)) + newRangeMin;
     }
 
     @Deprecated
@@ -436,12 +424,10 @@ public class Robot {
                     if ((progress >= 1 - marginalError && progress <= 1 + marginalError)) {
                         return 0;
                     } else {
-                        double power = 1 - progress;
-                        if(progress>=0.5){
-                            return (0.5-power/2)*(CIRCLING_HIGH-CIRCLING_LOW)+CIRCLING_LOW;
-                        }else{
-                            return (power)*(CIRCLING_HIGH-CIRCLING_LOW)+CIRCLING_LOW;
-
+                        if (progress >= 0 && progress <= 1 + marginalError) {
+                            return progress * (CIRCLING_HIGH - CIRCLING_LOW) + CIRCLING_LOW;
+                        } else {
+                            return 0;
                         }
                     }
                 }
@@ -451,11 +437,11 @@ public class Robot {
             public void onSetup() {
                 gyroBegin = getTurnGyro();
                 gyroToGo = gyroBegin + (direction * degree);
-//                if (gyroToGo > TERMINAL) {
-//                    gyroToGo = gyroToGo - 360;
-//                } else if (gyroToGo < -TERMINAL) {
-//                    gyroToGo = gyroToGo + 360;
-//                }
+                //                if (gyroToGo > TERMINAL) {
+                //                    gyroToGo = gyroToGo - 360;
+                //                } else if (gyroToGo < -TERMINAL) {
+                //                    gyroToGo = gyroToGo + 360;
+                //                }
             }
 
             @Override
@@ -465,36 +451,40 @@ public class Robot {
                 double stageB = gyroToGo - gyroBegin;
                 double progress = stageA / stageB;
                 //                progress=Math.abs(progress);
-//                telemetry.addData("Progress:", progress);
-//                progress=Range.clip(progress,0,1);
+                telemetry.addData("Progress:", progress);
+                //                progress=Range.clip(progress,0,1);
                 //                telemetry.addData("ToGo:", gyroToGo);
                 //                telemetry.addData("Start:", gyroBegin);
                 //                telemetry.addData("Current:", p);
                 double of = noMiss.calculate(progress);
-                turn(0, -direction*of);
+                turn(0, -direction * of);
                 return (of == 0);
             }
         });
     }
-    //    public Action autonomousArmMove(final double centimeters, final double power) {
-    //        return new Action(new Action.Execute() {
-    //            @Override
-    //            public void onSetup() {
-    //                arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-    //                arm.setTargetPosition((int) (arm.getCurrentPosition() + (Stats.tickPerArmCentimeter * centimeters)));
-    //                arm.setPower(power);
-    //            }
-    //
-    //            @Override
-    //            public boolean onLoop() {
-    //                if (!arm.isBusy()) {
-    //                    resetArm();
-    //                    return true;
-    //                }
-    //                return false;
-    //            }
-    //        });
-    //    }
+
+    public Action autonomousArmMove(final double centimeters, final double power) {
+        return new Action(new Action.Execute() {
+            @Override
+            public void onSetup() {
+                armLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                armLeft.setTargetPosition((int) (armLeft.getCurrentPosition() + (Stats.tickPerArmCentimeter * centimeters)));
+                armLeft.setPower(power);
+                armRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                armRight.setTargetPosition((int) (armRight.getCurrentPosition() + (Stats.tickPerArmCentimeter * centimeters)));
+                armRight.setPower(power);
+            }
+
+            @Override
+            public boolean onLoop() {
+                if (!armRight.isBusy() && !armLeft.isBusy()) {
+                    resetArm();
+                    return true;
+                }
+                return false;
+            }
+        });
+    }
 
     public Action autonomousJulieUp() {
         return new Action(new Action.Execute() {
@@ -545,30 +535,30 @@ public class Robot {
             @Override
             public void onSetup() {
                 miniaction.add(autonomousWait(500));
-                miniaction.add(autonomousCircle(RIGHT, 8, 0.01));
                 miniaction.add(autonomousJulieDown());
                 julieSensor.enableLed(false);
                 boolean isRed = (julieSensor.red() > julieSensor.blue());
                 //                permanent_messages.add("Color: "+color.red()+" "+color.green()+" "+color.blue());
+                glue("Is Red:"+isRed);
                 if (team == RED_TEAM) {
                     if (!isRed) {
-                        miniaction.add(autonomousCircle(LEFT, 18, 0.3));
+                        miniaction.add(autonomousCircle(LEFT, 18, marginalError));
                         miniaction.add(autonomousJulieUp());
-                        miniaction.add(autonomousCircle(RIGHT, 10, 0.3));
+                        miniaction.add(autonomousCircle(RIGHT, 18, marginalError));
                     } else {
-                        miniaction.add(autonomousCircle(RIGHT, 18, 0.3));
+                        miniaction.add(autonomousCircle(RIGHT, 18, marginalError));
                         miniaction.add(autonomousJulieUp());
-                        miniaction.add(autonomousCircle(LEFT, 26, 0.3));
+                        miniaction.add(autonomousCircle(LEFT, 18, marginalError));
                     }
                 } else {
                     if (isRed) {
-                        miniaction.add(autonomousCircle(LEFT, 18, 0.3));
+                        miniaction.add(autonomousCircle(LEFT, 18, marginalError));
                         miniaction.add(autonomousJulieUp());
-                        miniaction.add(autonomousCircle(RIGHT, 10, 0.3));
+                        miniaction.add(autonomousCircle(RIGHT, 18, marginalError));
                     } else {
-                        miniaction.add(autonomousCircle(RIGHT, 18, 0.3));
+                        miniaction.add(autonomousCircle(RIGHT, 18, marginalError));
                         miniaction.add(autonomousJulieUp());
-                        miniaction.add(autonomousCircle(LEFT, 26, 0.3));
+                        miniaction.add(autonomousCircle(LEFT, 18, marginalError));
                     }
                 }
             }
@@ -716,6 +706,47 @@ public class Robot {
         });
     }
 
+    public Action autonomousFindAndGotoGlyphs() {
+        return new Action(new Action.Execute() {
+            ArrayList<DetectGlyphs.Glyph> glyphs = new ArrayList<>();
+
+            Tunnel.OnTunnel<ArrayList<DetectGlyphs.Glyph>> onTunnel = new Tunnel.OnTunnel<ArrayList<DetectGlyphs.Glyph>>() {
+                @Override
+                public void onReceive(ArrayList<DetectGlyphs.Glyph> response) {
+                    if (response.size() != 0) {
+                        glyphs = response;
+                        FtcRobotControllerActivity.opencvGlyphTunnel.removeReceiver(this);
+                    }
+                }
+            };
+
+            @Override
+            public void onSetup() {
+                FtcRobotControllerActivity.opencvGlyphTunnel.addReceiver(onTunnel);
+            }
+
+            @Override
+            public boolean onLoop() {
+                if (glyphs.size() != 0) {
+                    DetectGlyphs.Glyph biggestGlyph = null;
+                    for (int i = 0; i < glyphs.size(); i++) {
+                        if (biggestGlyph == null) {
+                            biggestGlyph = glyphs.get(i);
+                        } else {
+                            DetectGlyphs.Glyph current = glyphs.get(i);
+                            if (current.currentWidth > biggestGlyph.currentWidth && current.currentHeight > biggestGlyph.currentHeight) {
+                                biggestGlyph = current;
+                            }
+                        }
+                    }
+                    glue("X:" + biggestGlyph.x + " Y:" + biggestGlyph.y + " W:" + biggestGlyph.currentWidth + " H:" + biggestGlyph.currentHeight);
+                    return true;
+                }
+                return false;
+            }
+        });
+    }
+
     public Action autonomousDrive(final double centimeters, final double power) {
         return new Action(new Action.Execute() {
             @Override
@@ -830,8 +861,8 @@ public class Robot {
 
 class Stats {
     static final int MULTI = 1;
-    static final double CIRCLING_LOW = 0.13;
-    static final double CIRCLING_HIGH = 0.18;
+    static final double CIRCLING_LOW = 0.12;
+    static final double CIRCLING_HIGH = 0.16;
     static final double TERMINAL = 179.99;
     static final int LINEBYLINE = 2;
     static final int RIGHT = -1;
@@ -841,7 +872,7 @@ class Stats {
     static final int BLUE_TEAM = 1;
     static final int RED_TEAM = 2;
     static final int WHEEL_RADIUS = 5;
-    static final double marginalError = 0.015;
+    static final double marginalError = 0.05;
     static final double offthebalancing = 30 + WHEEL_RADIUS;
     static final double intoChypher = 45;
     static final double redEastLocation3 = 54;
@@ -868,11 +899,9 @@ class Stats {
     static final double tickPerArmCentimeter = (armMotorTickPerRevolution / armToGear) / armCmPerMotorRevolution;
     static final double tickPerDegree = (((placeSpinDiameter * tickPerCentimeter) / 360) / 231) * 260;
     static final double tickPerDegreeAtPlace = (((placeOutSpinDiameter * tickPerCentimeter) / 360) / 231) * 245;//18.69023569
-    static final double fullDown = 0.54;
-    static final double readDown = 0.48;
+    static final double fullDown = 0.53;
+    static final double readDown = 0.51;
     static final double julZero = 0.02;
-    static final double clawOpen = 0.15;
-    static final double clawClose = 0.0;
     static final int armUp = 60;
 
     static class Vuforia {

@@ -32,6 +32,11 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import static org.firstinspires.ftc.teamcode.Stats.LEFT;
+import static org.firstinspires.ftc.teamcode.Stats.RED_TEAM;
+import static org.firstinspires.ftc.teamcode.Stats.RIGHT;
+import static org.firstinspires.ftc.teamcode.Stats.marginalError;
+
 @Autonomous(name = "AutonomousTest")
 public class AutonomousTest extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
     private ElapsedTime runtime = new ElapsedTime();
@@ -68,10 +73,13 @@ public class AutonomousTest extends com.qualcomm.robotcore.eventloop.opmode.OpMo
 
     Action[] getAutonomous() {
         return new Action[]{
-
-                r.autonomousCircle(Stats.RIGHT,90,0.004),
-                r.autonomousWait(5000),
-                r.autonomousCircle(Stats.RIGHT,180,0.004)
+                r.autonomousCircle(RIGHT,8,marginalError),
+                r.autonomousCircle(LEFT,8,marginalError),
+                r.autonomousCircle(RIGHT,90,marginalError),
+                r.autonomousCircle(LEFT,90,marginalError),
+//           r.autonomousJulieScanPosition(),
+//                r.autonomousJulieColorScan(RED_TEAM),
+                r.autonomousDone()
         };
     }
 

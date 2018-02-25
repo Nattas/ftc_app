@@ -74,14 +74,12 @@ public class Southwest extends com.qualcomm.robotcore.eventloop.opmode.OpMode {
 
     Action[] getAutonomous() {
         return new Action[]{
-//                r.autonomousVuforiaInit(),
-//                r.autonomousCircle(RIGHT,8,0.002),
-//                r.autonomousJulieScanPosition(),
-//                r.autonomousWait(500),
-//                r.autonomousJulieColorScan(RED_TEAM),
-                r.autonomousCircle(RIGHT,90,marginalError),
-                r.autonomousCircle(LEFT,90,marginalError),
-//                r.autonomousVuforia(getScenario()),
+                r.autonomousVuforiaInit(),
+//                r.autonomousCircle(RIGHT,8,marginalError),
+                r.autonomousJulieScanPosition(),
+                r.autonomousWait(500),
+                r.autonomousJulieColorScan(RED_TEAM),
+                r.autonomousVuforia(getScenario()),
 //                r.autonomousOpenClaw(),
                 r.autonomousDone()
         };

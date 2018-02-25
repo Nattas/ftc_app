@@ -130,6 +130,7 @@ import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
+import java.util.ArrayList;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -138,9 +139,10 @@ import fantastic.fourmula.opencv.DetectGlyphs;
 @SuppressWarnings("WeakerAccess")
 public class FtcRobotControllerActivity extends Activity
   {
-    public static CommTunnle<String> outgoingTunnle=new CommTunnle<>();
+    public static Tunnel<String> outgoingTunnel=new Tunnel<>();
+    public static Tunnel<ArrayList<DetectGlyphs.Glyph>> opencvGlyphTunnel=new Tunnel<>();
     public static DetectGlyphs glyphDetector=new DetectGlyphs();
-    private final boolean openCv=true;
+    private final boolean openCv=false;
     class FrameGrabber implements CameraBridgeViewBase.CvCameraViewListener2 {
       public FrameGrabber(CameraBridgeViewBase cameraBridgeViewBase) {
 
@@ -161,18 +163,38 @@ public class FtcRobotControllerActivity extends Activity
       @Override
       public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Mat mRgba = inputFrame.rgba();
-//        Imgproc.resize(mRgba, mRgba,  mRgba.size());
-//
-////        Core.flip(mRgba, mRgba, 1 );
-////        Core.rotate(mRgba,mRgba,Core.ROTATE_90_COUNTERCLOCKWISE);
-//        Core.rotate(mRgba,mRgba,0);
-        mRgba=glyphDetector.effect(inputFrame);
+        mRgba=glyphDetector.effect(mRgba);
+        ArrayList<DetectGlyphs.Glyph> glyphs=glyphDetector.detect(mRgba);
+        opencvGlyphTunnel.send(glyphs);
+        if(glyphs.size()!=0){
+          DetectGlyphs.Glyph biggestGlyph=null;
+          for(int i=0;i<glyphs.size();i++){
+            if(biggestGlyph==null){
+              biggestGlyph=glyphs.get(i);
+            }else{
+              DetectGlyphs.Glyph current=glyphs.get(i);
+              if(current.currentWidth>biggestGlyph.currentWidth&&current.currentHeight>biggestGlyph.currentHeight){
+                biggestGlyph=current;
+              }
+            }
+          }
+          final DetectGlyphs.Glyph finalBiggestGlyph = biggestGlyph;
+          runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+              closestOpencv.setText("X:"+ finalBiggestGlyph.x+" Y:"+ finalBiggestGlyph.y+" W:"+ finalBiggestGlyph.currentWidth+" H:"+ finalBiggestGlyph.currentHeight);
+
+            }
+          });
+
+        }
+
         final Bitmap b = Bitmap.createBitmap(mRgba.width(), mRgba.height(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(mRgba,b);
         runOnUiThread(new Runnable() {
           @Override
           public void run() {
-            effectedView.setImageBitmap(rotateBitmap(Bitmap.createScaledBitmap(b, frameLayout.getWidth(), frameLayout.getHeight(), false),90));
+            effectedView.setImageBitmap(rotateBitmap(b, frameLayout.getWidth(), frameLayout.getHeight(),90));
           }
         });
         return mRgba;
@@ -180,27 +202,24 @@ public class FtcRobotControllerActivity extends Activity
       }
     }
 
-    public Bitmap rotateBitmap(Bitmap original, float degrees) {
-      int width = original.getWidth();
-      int height = original.getHeight();
-
+    public Bitmap rotateBitmap(Bitmap original,int x,int y, float degrees) {
       Matrix matrix = new Matrix();
+
       matrix.postRotate(degrees);
 
-      Bitmap rotatedBitmap = Bitmap.createBitmap(original, 0, 0, width, height, matrix, true);
-      Canvas canvas = new Canvas(rotatedBitmap);
-      canvas.drawBitmap(original, 5.0f, 0.0f, null);
-
-      return rotatedBitmap;
+      Bitmap scaledBitmap = Bitmap.createScaledBitmap(original,y,x,true);
+      return Bitmap.createBitmap(scaledBitmap , 0, 0, scaledBitmap .getWidth(), scaledBitmap .getHeight(), matrix, true);
     }
 
     private CameraBridgeViewBase cameraBridgeViewBase;
     private ImageView effectedView;
     private FrameLayout frameLayout;
+    private TextView closestOpencv;
     void openCvCreate(){
       cameraBridgeViewBase = (JavaCameraView) findViewById(R.id.opencv_cameraview);
       effectedView = (ImageView)findViewById(R.id.effected_opencv);
       frameLayout = (FrameLayout) findViewById(R.id.opencv_holder);
+      closestOpencv = (TextView) findViewById(R.id.closest_opencv);
       if(openCv) {
         System.loadLibrary("opencv_java3");
         //      getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -371,7 +390,7 @@ public class FtcRobotControllerActivity extends Activity
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
-    outgoingTunnle.addReceiver(new CommTunnle.OnTunnle<String>() {
+    outgoingTunnel.addReceiver(new Tunnel.OnTunnel<String>() {
       @Override
       public void onReceive(String s) {
         Log.i("Outgoing Comm Tunnle",s);
